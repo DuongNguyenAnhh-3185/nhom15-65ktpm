@@ -2,11 +2,9 @@ import 'dart:math';
 
 import 'package:soroban_kids_app/shared/entities/soroban_question.dart';
 
-/// Difficulty levels supported by the arithmetic question generator.
+/// Difficulty level currently implemented by the arithmetic generator.
 enum QuestionLevel {
-  basic(1),
-  smallFriend(2),
-  mixed(3);
+  basic(1);
 
   const QuestionLevel(this.value);
 
@@ -28,99 +26,46 @@ class QuestionGenerator {
 
   /// Generates a question for [level]. Kept compatible with screens that pass
   /// the level as an integer.
-  static SorobanQuestion generate(int level, {int flashSpeedMs = 1200}) {
+  static SorobanQuestion generate(int level) {
     return QuestionGenerator().generateForLevel(
       QuestionLevel.fromValue(level),
-      flashSpeedMs: flashSpeedMs,
     );
   }
 
   SorobanQuestion generateForLevel(
     QuestionLevel level, {
-    int flashSpeedMs = 1200,
+    ArithmeticOperation? operation,
   }) {
     switch (level) {
       case QuestionLevel.basic:
-        return _generateBasic();
-      case QuestionLevel.smallFriend:
-        return _generateSmallFriend();
-      case QuestionLevel.mixed:
-        return _generateMixed(flashSpeedMs: flashSpeedMs);
+        return _generateBasic(operation: operation);
     }
   }
 
-  SorobanQuestion _generateBasic() {
-    const templates = <List<int>>[
-      [1, 2],
-      [2, 2],
-      [5, 3],
-      [6, 2],
-      [4, -2],
-      [7, -5],
-      [3, 5],
-      [8, -3],
-      [5, 4],
-      [9, -4],
-    ];
-    return _questionFromTemplate(
-      templates[_random.nextInt(templates.length)],
-      level: QuestionLevel.basic,
+  SorobanQuestion _generateBasic({ArithmeticOperation? operation}) {
+    final selectedOperation = operation ??
+        (_random.nextInt(2) == 0
+            ? ArithmeticOperation.addition
+            : ArithmeticOperation.subtraction);
+    final firstOperand = _random.nextInt(10);
+    final secondOperand = _random.nextInt(
+      selectedOperation == ArithmeticOperation.addition
+          ? 10 - firstOperand
+          : firstOperand + 1,
+    );
+
+    final answer = selectedOperation == ArithmeticOperation.addition
+        ? firstOperand + secondOperand
+        : firstOperand - secondOperand;
+
+    return SorobanQuestion(
+      id: 'level1_${DateTime.now().microsecondsSinceEpoch}',
+      level: QuestionLevel.basic.value,
+      operands: [firstOperand, secondOperand],
+      operation: selectedOperation,
+      expectedAnswer: answer,
       type: QuestionType.recognition,
     );
   }
 
-  SorobanQuestion _generateSmallFriend() {
-    const templates = <List<int>>[
-      [4, 1],
-      [3, 2],
-      [2, 3],
-      [1, 4],
-      [5, -1],
-      [5, -2],
-      [6, -2],
-      [7, -3],
-      [2, 4],
-      [3, 3],
-    ];
-    return _questionFromTemplate(
-      templates[_random.nextInt(templates.length)],
-      level: QuestionLevel.smallFriend,
-      type: QuestionType.smallFriend,
-    );
-  }
-
-  SorobanQuestion _generateMixed({required int flashSpeedMs}) {
-    const templates = <List<int>>[
-      [2, 5, 1],
-      [3, 1, 5],
-      [7, -2, 3],
-      [5, 4, -3],
-      [1, 3, 5, -2],
-      [4, 5, -3, 2],
-      [6, 3, -5, 4],
-    ];
-    return _questionFromTemplate(
-      templates[_random.nextInt(templates.length)],
-      level: QuestionLevel.mixed,
-      type: QuestionType.flashAnzan,
-      flashSpeedMs: flashSpeedMs,
-    );
-  }
-
-  SorobanQuestion _questionFromTemplate(
-    List<int> operands, {
-    required QuestionLevel level,
-    required QuestionType type,
-    int flashSpeedMs = 1200,
-  }) {
-    final answer = operands.reduce((a, b) => a + b);
-    return SorobanQuestion(
-      id: 'level${level.value}_${DateTime.now().microsecondsSinceEpoch}',
-      level: level.value,
-      operands: operands,
-      expectedAnswer: answer,
-      type: type,
-      flashSpeedMs: flashSpeedMs,
-    );
-  }
 }
