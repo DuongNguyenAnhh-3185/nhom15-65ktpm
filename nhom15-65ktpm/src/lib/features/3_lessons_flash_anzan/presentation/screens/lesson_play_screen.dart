@@ -10,7 +10,7 @@ import 'package:soroban_kids_app/features/1_abacus_engine/domain/entities/finger
 import 'package:soroban_kids_app/features/1_abacus_engine/presentation/controllers/finger_math_controller.dart';
 import 'package:soroban_kids_app/features/1_abacus_engine/presentation/widgets/finger_math_board_widget.dart';
 import 'package:soroban_kids_app/features/4_ai_voice_tutor/presentation/widgets/voice_answer_mic_button.dart';
-import 'package:soroban_kids_app/features/3_lessons_flash_anzan/domain/question_generator.dart';
+import 'package:soroban_kids_app/features/question_generator/domain/question_generator.dart';
 
 class LessonPlayScreen extends StatefulWidget {
   final int level;

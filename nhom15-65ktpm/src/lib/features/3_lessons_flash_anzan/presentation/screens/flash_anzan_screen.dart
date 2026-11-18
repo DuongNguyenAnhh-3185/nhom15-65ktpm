@@ -11,7 +11,7 @@ import 'package:soroban_kids_app/features/1_abacus_engine/presentation/controlle
 import 'package:soroban_kids_app/features/1_abacus_engine/presentation/widgets/finger_math_board_widget.dart';
 import 'package:soroban_kids_app/features/4_ai_voice_tutor/domain/engine/adaptive_tutor_engine.dart';
 import 'package:soroban_kids_app/features/4_ai_voice_tutor/presentation/widgets/voice_answer_mic_button.dart';
-import 'package:soroban_kids_app/features/3_lessons_flash_anzan/domain/question_generator.dart';
+import 'package:soroban_kids_app/features/question_generator/domain/question_generator.dart';
 
 class FlashAnzanScreen extends StatefulWidget {
   final int initialSpeedMs;
