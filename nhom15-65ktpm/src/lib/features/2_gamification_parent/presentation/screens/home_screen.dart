@@ -4,7 +4,6 @@ import '../../../../core/services/audio_service.dart';
 import '../../../../core/services/storage_service.dart';
 import '../../../../injection_container.dart';
 import '../../../../shared/entities/child_profile.dart';
-import '../../../../shared/widgets/animated_icon_tile.dart';
 import '../../../../shared/widgets/mascot_bubble.dart';
 import 'package:soroban_kids_app/features/1_abacus_engine/presentation/controllers/finger_math_controller.dart';
 import 'package:soroban_kids_app/features/1_abacus_engine/presentation/widgets/finger_math_board_widget.dart';
@@ -148,16 +147,12 @@ class _HomeScreenState extends State<HomeScreen> {
                       children: [
                         const Text('🔥', style: TextStyle(fontSize: 20)),
                         const SizedBox(width: 6),
-                        Semantics(
-                          label:
-                              'Chuỗi ngày học: ${_profile?.streakCount ?? 3} ngày',
-                          child: Text(
-                            '${_profile?.streakCount ?? 3}',
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w800,
-                              color: AppColors.accentOrange,
-                            ),
+                        Text(
+                          '${_profile?.streakCount ?? 3} Ngày',
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.accentOrange,
                           ),
                         ),
                       ],
@@ -206,7 +201,6 @@ class _HomeScreenState extends State<HomeScreen> {
               MascotBubbleWidget(
                 speechText:
                     'Hôm nay bé muốn đếm ngón tay Finger Math hay thi đấu tính nhẩm nhanh nè?',
-                iconOnly: true,
                 onMascotTap: () {
                   _audioService.speak(
                     'Hôm nay bé muốn đếm ngón tay Finger Math hay thi đấu tính nhẩm nhanh nè?',
@@ -215,64 +209,173 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               const SizedBox(height: 24),
 
-              // Menu bài học dùng biểu tượng chuyển động thay cho mô tả dài.
-              GridView.count(
-                crossAxisCount: 2,
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                crossAxisSpacing: 16,
-                mainAxisSpacing: 16,
-                childAspectRatio: 1.2,
-                children: [
-                  AnimatedIconTile(
-                    icon: Icons.back_hand_rounded,
-                    semanticLabel: 'Cấp độ 1: Finger Math cơ bản',
-                    color: AppColors.secondary,
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const LessonPlayScreen(level: 1),
-                        ),
-                      );
-                    },
+              // Danh sách 3 Cấp độ học tập dạng thẻ to rực rỡ
+              _buildLevelCard(
+                title: 'CẤP ĐỘ 1: FINGER MATH CƠ BẢN',
+                subtitle: 'Đếm ngón 0-9: Tay Phải hàng đơn vị, Tay Trái hàng chục',
+                color: AppColors.secondary,
+                emoji: '✌️',
+                badgeText: 'Cơ Bản',
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const LessonPlayScreen(level: 1),
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(height: 16),
+
+              _buildLevelCard(
+                title: 'CẤP ĐỘ 2: ANH BẠN NHỎ & ANH BẠN LỚN',
+                subtitle: 'Công thức xòe/gập ngón tay: +4 = +5 - 1, +9 = +10 - 1',
+                color: AppColors.primary,
+                emoji: '👍',
+                badgeText: 'Công Thức',
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const LessonPlayScreen(level: 2),
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(height: 16),
+
+              _buildLevelCard(
+                title: 'CẤP ĐỘ 3: FLASH ANZAN FINGER MATH',
+                subtitle: 'Tính nhẩm nhanh siêu tốc bằng 2 bàn tay (0 - 99)',
+                color: AppColors.accentPurple,
+                emoji: '⚡',
+                badgeText: 'Siêu Tốc',
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const FlashAnzanScreen(),
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(height: 20),
+
+              // Nút Bàn tay Finger Math tự do
+              OutlinedButton.icon(
+                onPressed: _openFreePlayModal,
+                icon: const Icon(Icons.front_hand, size: 26),
+                label: const Text('BÀN TAY FINGER MATH (CHƠI TỰ DO) ✋'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.textDark,
+                  side: const BorderSide(color: AppColors.primary, width: 2),
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
                   ),
-                  AnimatedIconTile(
-                    icon: Icons.lightbulb_rounded,
-                    semanticLabel: 'Cấp độ 2: Công thức Finger Math',
-                    color: AppColors.primary,
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const LessonPlayScreen(level: 2),
-                        ),
-                      );
-                    },
+                  textStyle: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
                   ),
-                  AnimatedIconTile(
-                    icon: Icons.bolt_rounded,
-                    semanticLabel: 'Cấp độ 3: Flash Anzan',
-                    color: AppColors.accentPurple,
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const FlashAnzanScreen(),
-                        ),
-                      );
-                    },
-                  ),
-                  AnimatedIconTile(
-                    icon: Icons.front_hand_rounded,
-                    semanticLabel: 'Chơi Finger Math tự do',
-                    color: AppColors.accentOrange,
-                    onTap: _openFreePlayModal,
-                  ),
-                ],
+                ),
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLevelCard({
+    required String title,
+    required String subtitle,
+    required Color color,
+    required String emoji,
+    required String badgeText,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: color,
+          borderRadius: BorderRadius.circular(28),
+          boxShadow: [
+            BoxShadow(
+              color: color.withOpacity(0.35),
+              blurRadius: 14,
+              offset: const Offset(0, 6),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 68,
+              height: 68,
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.25),
+                shape: BoxShape.circle,
+              ),
+              child: Center(
+                child: Text(emoji, style: const TextStyle(fontSize: 34)),
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          badgeText,
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w800,
+                            color: color,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w900,
+                      color: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    subtitle,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      color: Colors.white70,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(
+              Icons.arrow_forward_ios_rounded,
+              color: Colors.white,
+              size: 20,
+            ),
+          ],
         ),
       ),
     );
