@@ -34,6 +34,7 @@
 4. **Triết lý giao diện Không chữ (Zero-Text UI):**
    - Biểu tượng lớn, âm thanh vui nhộn, màu sắc rực rỡ chuẩn WCAG cho trẻ nhỏ.
    - Trợ lý giọng nói tiếng Việt đồng hành hướng dẫn mọi thao tác.
+   - Màn hình chính dùng các biểu tượng bài học chuyển động thay cho mô tả dài; nhãn trợ năng và Tooltip vẫn cung cấp tên chức năng, còn lời nhắc được phát bằng giọng nói.
 
 ---
 
