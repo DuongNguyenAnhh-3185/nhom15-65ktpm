@@ -4,11 +4,13 @@ import '../../core/constants/app_colors.dart';
 class MascotBubbleWidget extends StatelessWidget {
   final String speechText;
   final VoidCallback? onMascotTap;
+  final bool iconOnly;
 
   const MascotBubbleWidget({
     super.key,
     required this.speechText,
     this.onMascotTap,
+    this.iconOnly = false,
   });
 
   @override
@@ -62,15 +64,23 @@ class MascotBubbleWidget extends StatelessWidget {
                 ),
               ],
             ),
-            child: Text(
-              speechText,
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
-                color: AppColors.textDark,
-                height: 1.3,
-              ),
-            ),
+            child: iconOnly
+                ? const Center(
+                    child: Icon(
+                      Icons.record_voice_over_rounded,
+                      color: AppColors.primary,
+                      size: 36,
+                    ),
+                  )
+                : Text(
+                    speechText,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textDark,
+                      height: 1.3,
+                    ),
+                  ),
           ),
         ),
       ],
