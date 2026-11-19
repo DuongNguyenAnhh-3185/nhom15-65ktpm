@@ -7,7 +7,6 @@ import '../../../../shared/entities/child_profile.dart';
 import '../../../../shared/widgets/mascot_bubble.dart';
 import 'package:soroban_kids_app/features/1_abacus_engine/presentation/controllers/finger_math_controller.dart';
 import 'package:soroban_kids_app/features/1_abacus_engine/presentation/widgets/finger_math_board_widget.dart';
-import 'package:soroban_kids_app/features/3_lessons_flash_anzan/presentation/screens/flash_anzan_screen.dart';
 import 'package:soroban_kids_app/features/3_lessons_flash_anzan/presentation/screens/lesson_play_screen.dart';
 import '../widgets/parental_gate_dialog.dart';
 import 'parent_dashboard_screen.dart';
@@ -212,7 +211,8 @@ class _HomeScreenState extends State<HomeScreen> {
               // Danh sách 3 Cấp độ học tập dạng thẻ to rực rỡ
               _buildLevelCard(
                 title: 'CẤP ĐỘ 1: FINGER MATH CƠ BẢN',
-                subtitle: 'Đếm ngón 0-9: Tay Phải hàng đơn vị, Tay Trái hàng chục',
+                subtitle:
+                    'Đếm ngón 0-9: Tay Phải hàng đơn vị, Tay Trái hàng chục',
                 color: AppColors.secondary,
                 emoji: '✌️',
                 badgeText: 'Cơ Bản',
@@ -229,11 +229,19 @@ class _HomeScreenState extends State<HomeScreen> {
 
               _buildLevelCard(
                 title: 'CẤP ĐỘ 2: ANH BẠN NHỎ & ANH BẠN LỚN',
-                subtitle: 'Công thức xòe/gập ngón tay: +4 = +5 - 1, +9 = +10 - 1',
+                subtitle:
+                    'Công thức xòe/gập ngón tay: +4 = +5 - 1, +9 = +10 - 1',
                 color: AppColors.primary,
                 emoji: '👍',
                 badgeText: 'Công Thức',
-                onTap: () {},
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const LessonPlayScreen(level: 2),
+                    ),
+                  );
+                },
               ),
               const SizedBox(height: 16),
 
