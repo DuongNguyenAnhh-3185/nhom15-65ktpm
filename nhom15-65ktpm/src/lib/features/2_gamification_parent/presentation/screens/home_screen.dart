@@ -233,14 +233,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 color: AppColors.primary,
                 emoji: '👍',
                 badgeText: 'Công Thức',
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const LessonPlayScreen(level: 2),
-                    ),
-                  );
-                },
+                onTap: () {},
               ),
               const SizedBox(height: 16),
 
@@ -250,14 +243,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 color: AppColors.accentPurple,
                 emoji: '⚡',
                 badgeText: 'Siêu Tốc',
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const FlashAnzanScreen(),
-                    ),
-                  );
-                },
+                onTap: () {},
               ),
               const SizedBox(height: 20),
 
