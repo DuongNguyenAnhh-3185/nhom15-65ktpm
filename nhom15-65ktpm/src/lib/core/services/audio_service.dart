@@ -1,3 +1,4 @@
+
 import 'dart:math';
 import 'package:flutter/services.dart';
 import 'package:flutter_tts/flutter_tts.dart';
@@ -5,42 +6,66 @@ import 'package:flutter_tts/flutter_tts.dart';
 class AudioService {
   final FlutterTts _flutterTts = FlutterTts();
   bool _isTtsInitialized = false;
+  Future<void>? _initialization;
 
   AudioService() {
     _initTts();
   }
 
-  Future<void> _initTts() async {
+  Future<void> _initTts() {
+    if (_isTtsInitialized) return Future.value();
+
+    return _initialization ??= _configureTts().whenComplete(() {
+      _initialization = null;
+    });
+  }
+
+  Future<void> _configureTts() async {
     try {
       await _flutterTts.setLanguage('vi-VN');
       await _flutterTts.setSpeechRate(0.42); // Tốc độ thong thả, rõ từng từ cho trẻ 4-6 tuổi
       await _flutterTts.setVolume(1.0);
       await _flutterTts.setPitch(1.15); // Âm điệu thân thiện, ấm áp
 
-      // Tìm và chọn giọng tiếng Việt (ví dụ Microsoft An trên Windows) nếu có
+      // Trình duyệt có thể tải danh sách giọng nói trễ khi ứng dụng vừa mở.
+      final vietnameseVoice = await _findVietnameseVoice();
+      if (vietnameseVoice != null) {
+        await _flutterTts.setVoice(vietnameseVoice);
+        await _flutterTts.setLanguage(vietnameseVoice['locale']!);
+      }
+
+      _isTtsInitialized = true;
+    } catch (_) {
+      _isTtsInitialized = false;
+    }
+  }
+
+  Future<Map<String, String>?> _findVietnameseVoice() async {
+    const maxAttempts = 8;
+    for (var attempt = 0; attempt < maxAttempts; attempt++) {
       try {
         final voices = await _flutterTts.getVoices;
         if (voices is List) {
           for (final voice in voices) {
             if (voice is Map) {
-              final locale = (voice['locale'] ?? '').toString().toLowerCase();
-              final name = (voice['name'] ?? '').toString().toLowerCase();
-              if (locale.contains('vi') || name.contains('vietnam') || name.contains('an')) {
-                await _flutterTts.setVoice({
-                  'name': voice['name'].toString(),
-                  'locale': voice['locale'].toString(),
-                });
-                break;
+              final locale = (voice['locale'] ?? '').toString();
+              final normalizedLocale = locale
+                  .replaceAll('_', '-')
+                  .toLowerCase();
+              if (normalizedLocale == 'vi' ||
+                  normalizedLocale.startsWith('vi-')) {
+                return {'name': voice['name'].toString(), 'locale': locale};
               }
             }
           }
         }
       } catch (_) {}
 
-      _isTtsInitialized = true;
-    } catch (_) {
-      _isTtsInitialized = false;
+      if (attempt < maxAttempts - 1) {
+        await Future<void>.delayed(const Duration(milliseconds: 250));
+      }
     }
+    return null;
   }
 
   /// Chuyển đổi số nguyên (0 đến 99) thành chữ tiếng Việt chuẩn xác
@@ -82,16 +107,12 @@ class AudioService {
   static String normalizeToVietnamese(String text) {
     var result = text;
     // Chuyển các phép toán và ký tự đặc biệt
-    result = result.replaceAll(' + ', ' cộng ');
-    result = result.replaceAll(' - ', ' trừ ');
-    result = result.replaceAll(' = ', ' bằng ');
     result = result.replaceAll('+', ' cộng ');
     result = result.replaceAll('-', ' trừ ');
     result = result.replaceAll('=', ' bằng ');
     result = result.replaceAll('?', ' bao nhiêu ');
-    result = result.replaceAll('!', ' ');
 
-    // Chuẩn hóa khoảng trắng trước khi đổi số
+    // Chuẩn hóa khoảng trắng trước khi trích xuất số
     result = result.replaceAll(RegExp(r'\s+'), ' ').trim();
 
     // Chuyển các số độc lập trong chuỗi sang chữ tiếng Việt

@@ -1,22 +1,20 @@
 import 'dart:async';
+import 'dart:math';
 import 'package:flutter/material.dart';
-import '../../../../core/constants/app_colors.dart';
-import '../../../../core/services/audio_service.dart';
-import '../../../../core/services/storage_service.dart';
-import '../../../../injection_container.dart';
-import '../../../../shared/entities/attempt_log.dart';
-import '../../../../shared/entities/soroban_question.dart';
-import 'package:soroban_kids_app/features/1_abacus_engine/domain/entities/finger_hand_state.dart';
-import 'package:soroban_kids_app/features/1_abacus_engine/presentation/controllers/finger_math_controller.dart';
-import 'package:soroban_kids_app/features/1_abacus_engine/presentation/widgets/finger_math_board_widget.dart';
+import 'package:soroban_kids_app/core/constants/app_colors.dart';
+import 'package:soroban_kids_app/core/services/audio_service.dart';
+import 'package:soroban_kids_app/core/services/gamification_service.dart';
+import 'package:soroban_kids_app/core/services/storage_service.dart';
+import 'package:soroban_kids_app/features/2_gamification_parent/presentation/widgets/badge_unlock_dialog.dart';
 import 'package:soroban_kids_app/features/4_ai_voice_tutor/domain/engine/adaptive_tutor_engine.dart';
 import 'package:soroban_kids_app/features/4_ai_voice_tutor/presentation/widgets/voice_answer_mic_button.dart';
-import 'package:soroban_kids_app/features/3_lessons_flash_anzan/domain/question_generator.dart';
+import 'package:soroban_kids_app/injection_container.dart';
+import 'package:soroban_kids_app/shared/entities/attempt_log.dart';
+
+enum FlashState { idle, ready, flashing, waitingAnswer, finished }
 
 class FlashAnzanScreen extends StatefulWidget {
-  final int initialSpeedMs;
-
-  const FlashAnzanScreen({super.key, this.initialSpeedMs = 1200});
+  const FlashAnzanScreen({super.key});
 
   @override
   State<FlashAnzanScreen> createState() => _FlashAnzanScreenState();
@@ -25,412 +23,372 @@ class FlashAnzanScreen extends StatefulWidget {
 class _FlashAnzanScreenState extends State<FlashAnzanScreen> {
   final AudioService _audioService = sl<AudioService>();
   final StorageService _storageService = sl<StorageService>();
-  late FingerMathController _fingerController;
 
-  late SorobanQuestion _currentQuestion;
-  int _flashSpeedMs = 1200;
-
-  bool _isFlashing = false;
-  String _displayNumber = 'SẴN SÀNG?';
-  Color _displayColor = AppColors.secondary;
-  bool _waitingForAnswer = false;
-  String _feedbackMessage = 'Bé nhìn kỹ các số xuất hiện nhé!';
+  FlashState _state = FlashState.idle;
+  int _flashSpeedMs = 1200; // Tốc độ chớp số thích ứng
+  List<int> _numbers = [];
+  int _currentIndex = 0;
+  int _expectedAnswer = 0;
+  int? _userAnswer;
+  bool _isCorrect = false;
+  DateTime _questionStartTime = DateTime.now();
+  Timer? _flashTimer;
+  String _adaptiveNote = '';
 
   @override
   void initState() {
     super.initState();
-    _flashSpeedMs = widget.initialSpeedMs;
-    _fingerController = FingerMathController(showLeftHand: true);
-    _nextQuestion();
+    _loadProfileSettings();
   }
 
   @override
   void dispose() {
-    _fingerController.dispose();
+    _flashTimer?.cancel();
     super.dispose();
   }
 
-  void _nextQuestion() {
+  Future<void> _loadProfileSettings() async {
+    final profile = await _storageService.getChildProfile();
     setState(() {
-      _currentQuestion = QuestionGenerator.generate(3, flashSpeedMs: _flashSpeedMs);
-      _fingerController.reset();
-      _waitingForAnswer = false;
-      _displayNumber = 'SẴN SÀNG?';
-      _displayColor = AppColors.secondary;
-      _feedbackMessage = 'Nhấn nút để bắt đầu tính nhẩm Finger Math!';
+      _flashSpeedMs = profile.flashSpeedMs;
     });
   }
 
-  Future<void> _startFlashSequence() async {
-    setState(() {
-      _isFlashing = true;
-      _waitingForAnswer = false;
-      _displayNumber = '3';
-      _displayColor = AppColors.accentOrange;
-    });
-    await _audioService.speak('Ba');
-    await Future.delayed(const Duration(milliseconds: 600));
+  void _startFlashSession() {
+    final random = Random();
+    // Sinh chuỗi 3 số đơn giản 1-9 với tổng không âm
+    final count = 3;
+    final nums = <int>[];
+    int sum = 0;
 
-    if (!mounted) return;
-    setState(() => _displayNumber = '2');
-    await _audioService.speak('Hai');
-    await Future.delayed(const Duration(milliseconds: 600));
-
-    if (!mounted) return;
-    setState(() => _displayNumber = '1');
-    await _audioService.speak('Một');
-    await Future.delayed(const Duration(milliseconds: 600));
-
-    // Bắt đầu chớp số
-    for (int i = 0; i < _currentQuestion.operands.length; i++) {
-      if (!mounted) return;
-      final val = _currentQuestion.operands[i];
-      final valText = val >= 0 ? '+$val' : '$val';
-
-      setState(() {
-        _displayNumber = valText;
-        _displayColor = val >= 0 ? AppColors.primary : AppColors.secondary;
-      });
-
-      _audioService.speak(val >= 0 ? 'Cộng $val' : 'Trừ ${val.abs()}');
-      await Future.delayed(Duration(milliseconds: _flashSpeedMs));
-
-      // Khoảng nghỉ trắng mắt giữa 2 số để kích thích não bộ hình dung
-      if (!mounted) return;
-      setState(() {
-        _displayNumber = '';
-      });
-      await Future.delayed(const Duration(milliseconds: 180));
+    for (int i = 0; i < count; i++) {
+      if (i == 0) {
+        final n = random.nextInt(5) + 1;
+        nums.add(n);
+        sum = n;
+      } else {
+        final add = random.nextBool();
+        if (add) {
+          final n = random.nextInt(4) + 1;
+          nums.add(n);
+          sum += n;
+        } else {
+          final n = min(random.nextInt(3) + 1, sum);
+          nums.add(-n);
+          sum -= n;
+        }
+      }
     }
 
-    if (!mounted) return;
     setState(() {
-      _isFlashing = false;
-      _waitingForAnswer = true;
-      _displayNumber = '?';
-      _displayColor = AppColors.accentYellow;
-      _feedbackMessage = 'Bé bung ngón tay Finger Math hoặc đọc to đáp án nhé!';
+      _numbers = nums;
+      _expectedAnswer = sum;
+      _currentIndex = 0;
+      _userAnswer = null;
+      _isCorrect = false;
+      _state = FlashState.flashing;
+      _adaptiveNote = '';
     });
-    await _audioService.speak('Bằng bao nhiêu bé ơi?');
+
+    _audioService.speak('Sẵn sàng chớp số nào!');
+
+    _flashTimer = Timer.periodic(Duration(milliseconds: _flashSpeedMs), (timer) {
+      if (_currentIndex < _numbers.length - 1) {
+        setState(() {
+          _currentIndex++;
+        });
+        final currentNum = _numbers[_currentIndex];
+        final spoken = currentNum > 0 ? 'cộng $currentNum' : 'trừ ${currentNum.abs()}';
+        _audioService.speak(spoken);
+      } else {
+        timer.cancel();
+        setState(() {
+          _state = FlashState.waitingAnswer;
+          _questionStartTime = DateTime.now();
+        });
+        _audioService.speak('Bằng mấy bé ơi? Hãy đọc to hoặc chọn đáp án!');
+      }
+    });
   }
 
-  Future<void> _checkAnswer(int answer, String answeredVia) async {
-    if (!_waitingForAnswer) return;
+  Future<void> _submitAnswer(int answer, {String method = 'abacus_touch'}) async {
+    if (_state != FlashState.waitingAnswer) return;
 
-    final isCorrect = answer == _currentQuestion.expectedAnswer;
-    final guidance = FingerMathFormulaHelper.generateFullGuidance(
-      operands: _currentQuestion.operands,
-      expectedAnswer: _currentQuestion.expectedAnswer,
-    );
+    final isCorrect = answer == _expectedAnswer;
+    final responseTime = DateTime.now().difference(_questionStartTime).inMilliseconds;
 
+    setState(() {
+      _userAnswer = answer;
+      _isCorrect = isCorrect;
+      _state = FlashState.finished;
+    });
+
+    if (isCorrect) {
+      _audioService.playSuccessFeedback();
+    } else {
+      _audioService.playEncouragementFeedback('Đáp án chính xác là $_expectedAnswer bé nhé!');
+    }
+
+    // 1. Lưu bản ghi
     final log = AttemptLog(
-      questionId: _currentQuestion.id,
+      questionId: 'flash_${DateTime.now().millisecondsSinceEpoch}',
       userAnswer: answer,
       isCorrect: isCorrect,
-      responseTimeMs: 2000,
-      answeredVia: answeredVia,
+      responseTimeMs: responseTime,
+      answeredVia: method,
       timestamp: DateTime.now().toIso8601String(),
+      difficultyLevel: 3,
+      flashAnzanSpeedMs: _flashSpeedMs,
+      questionText: _numbers.map((n) => n > 0 ? '+$n' : '$n').join(' '),
     );
     await _storageService.saveAttemptLog(log);
 
-    // AI Thích ứng: Đánh giá và tự động căn chỉnh tốc độ
-    final recentLogs = await _storageService.getRecentLogs();
+    // 2. Cập nhật Streak & Huy hiệu
+    final profile = await _storageService.getChildProfile();
+    final allLogs = await _storageService.getRecentLogs();
+    final gamificationResult = GamificationService.processLessonCompletion(
+      profile: profile,
+      allLogs: allLogs,
+    );
+    await _storageService.saveChildProfile(gamificationResult.updatedProfile);
+
+    if (gamificationResult.newlyUnlockedBadges.isNotEmpty && mounted) {
+      BadgeUnlockDialog.show(context, gamificationResult.newlyUnlockedBadges);
+    }
+
+    // 3. Gia sư thích ứng điều chỉnh tốc độ Flash Anzan
     final decision = AdaptiveTutorEngine.evaluatePerformance(
-      recentAttempts: recentLogs,
+      recentAttempts: allLogs,
       currentFlashSpeedMs: _flashSpeedMs,
+      currentLevel: 3,
     );
 
     setState(() {
       _flashSpeedMs = decision.recommendedSpeedMs;
-      _waitingForAnswer = false;
+      _adaptiveNote = decision.reason;
     });
-
-    if (isCorrect) {
-      await _audioService.playSuccessFeedback(
-        'Hoan hô bé! Bé đã tính nhẩm siêu tốc rất chính xác! Phép tính ${_currentQuestion.spokenExpression} bằng $answer!',
-      );
-      _showResultDialog(
-        title: 'XUẤT SẮC! 🎉',
-        formula: '${_currentQuestion.formulaExpression} = $answer ✅',
-        message: 'Hoan hô bé! Bé đã tính nhẩm rất chuẩn xác!\n${decision.message}',
-        guidance: null,
-        isSuccess: true,
-      );
-    } else {
-      await _audioService.playEncouragementFeedback(guidance.spokenText);
-      _showResultDialog(
-        title: 'BÉ CÙNG XEM HƯỚNG DẪN 💡',
-        formula: '${_currentQuestion.formulaExpression} = ?',
-        message: 'Bé trả lời: $answer ❌  |  Đáp án đúng: ${_currentQuestion.expectedAnswer} ⭐\n${decision.message}',
-        guidance: guidance,
-        isSuccess: false,
-      );
-    }
-  }
-
-  void _showResultDialog({
-    required String title,
-    required String formula,
-    required String message,
-    required FingerMathGuidance? guidance,
-    required bool isSuccess,
-  }) {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(24),
-          ),
-          backgroundColor: isSuccess ? const Color(0xFFF0FFF4) : const Color(0xFFFFF8E1),
-          title: Text(
-            title,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.w900,
-              color: isSuccess ? AppColors.success : AppColors.accentOrange,
-            ),
-          ),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Hiển thị lại câu hỏi rõ ràng
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                      color: isSuccess ? AppColors.success : AppColors.accentOrange,
-                      width: 2,
-                    ),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        formula,
-                        style: TextStyle(
-                          fontSize: 26,
-                          fontWeight: FontWeight.w900,
-                          color: isSuccess ? AppColors.success : AppColors.primary,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      IconButton(
-                        icon: const Icon(Icons.volume_up_rounded, color: AppColors.primary),
-                        tooltip: 'Nghe lại phép tính',
-                        onPressed: () {
-                          _audioService.speak('Phép tính vừa rồi: ${_currentQuestion.spokenExpression}');
-                        },
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  message,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.textDark,
-                  ),
-                ),
-                if (guidance != null) ...[
-                  const SizedBox(height: 12),
-                  const Align(
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      '💡 Các bước thực hiện Finger Math:',
-                      style: TextStyle(fontWeight: FontWeight.w800, color: AppColors.accentOrange, fontSize: 15),
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  for (final step in guidance.steps)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 6),
-                      child: Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Text(
-                          step,
-                          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textDark),
-                        ),
-                      ),
-                    ),
-                  ElevatedButton.icon(
-                    onPressed: () => _audioService.speak(guidance.spokenText),
-                    icon: const Icon(Icons.volume_up_rounded, size: 20),
-                    label: const Text('Nghe lại hướng dẫn 🔊'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.accentOrange,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
-          actionsAlignment: MainAxisAlignment.center,
-          actions: [
-            ElevatedButton(
-              onPressed: () {
-                Navigator.pop(context);
-                _nextQuestion();
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: isSuccess ? AppColors.success : AppColors.secondary,
-                padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 12),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-              ),
-              child: const Text('Câu tiếp theo ➡️', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            ),
-          ],
-        );
-      },
-    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFFF7F8FC),
       appBar: AppBar(
-        title: const Text(
-          '⚡ Flash Anzan - Finger Math Siêu Tốc',
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
-        backgroundColor: AppColors.cardBg,
-        elevation: 0,
-        actions: [
-          Container(
-            margin: const EdgeInsets.only(right: 16),
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(
-              color: AppColors.accentYellow.withOpacity(0.3),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Row(
-              children: [
-                const Icon(Icons.speed, size: 18, color: AppColors.accentOrange),
-                const SizedBox(width: 4),
-                Text(
-                  '${(_flashSpeedMs / 1000).toStringAsFixed(1)}s',
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                ),
-              ],
-            ),
-          ),
-        ],
+        title: const Text('⚡ Flash Anzan Tính Nhẩm'),
+        backgroundColor: Colors.white,
+        elevation: 0.5,
       ),
       body: SafeArea(
-        child: Column(
-          children: [
-            const SizedBox(height: 10),
-            // Khung hiển thị số chớp nhoáng
-            Expanded(
-              flex: 4,
-              child: Container(
-                margin: const EdgeInsets.symmetric(horizontal: 20),
-                decoration: BoxDecoration(
-                  color: _displayColor,
-                  borderRadius: BorderRadius.circular(28),
-                  boxShadow: [
-                    BoxShadow(
-                      color: _displayColor.withOpacity(0.35),
-                      blurRadius: 18,
-                      offset: const Offset(0, 6),
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 600),
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  // Thẻ tốc độ hiện tại
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: AppColors.accentPurple.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(20),
                     ),
-                  ],
-                ),
-                child: Center(
-                  child: Text(
-                    _displayNumber,
-                    style: const TextStyle(
-                      fontSize: 76,
-                      fontWeight: FontWeight.w900,
-                      color: Colors.white,
-                      letterSpacing: 2,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 10),
-
-            // Lời hướng dẫn hoặc nút bắt đầu
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Text(
-                _feedbackMessage,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.textDark,
-                ),
-              ),
-            ),
-
-            if (!_isFlashing && !_waitingForAnswer)
-              Padding(
-                padding: const EdgeInsets.all(10),
-                child: ElevatedButton.icon(
-                  onPressed: _startFlashSequence,
-                  icon: const Icon(Icons.play_arrow, size: 30),
-                  label: const Text('BẮT ĐẦU CHỚP SỐ'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 12),
-                  ),
-                ),
-              ),
-
-            // Bàn tay Finger Math để bé bung ngón tay
-            Expanded(
-              flex: 5,
-              child: FingerMathBoardWidget(
-                controller: _fingerController,
-                height: 200,
-                showLiveValue: true,
-              ),
-            ),
-
-            // Nút trả lời bằng ngón tay & Micro AI giọng nói
-            if (_waitingForAnswer)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 12, left: 20, right: 20),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    ElevatedButton(
-                      onPressed: () {
-                        _checkAnswer(_fingerController.totalValue, 'finger_touch');
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.success,
-                        padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 14),
+                    child: Text(
+                      'Tốc độ chớp số AI: ${_flashSpeedMs}ms / số',
+                      style: const TextStyle(
+                        color: AppColors.accentPurple,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 14,
                       ),
-                      child: const Text('GỬI NGÓN TAY ✋', style: TextStyle(fontSize: 15)),
                     ),
+                  ),
+                  const SizedBox(height: 24),
+
+                  // Màn hình hiển thị số chớp
+                  Container(
+                    width: double.infinity,
+                    height: 220,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(32),
+                      border: Border.all(
+                        color: _state == FlashState.flashing
+                            ? AppColors.accentPurple
+                            : Colors.grey.shade300,
+                        width: 3,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppColors.accentPurple.withValues(alpha: 0.15),
+                          blurRadius: 16,
+                          offset: const Offset(0, 6),
+                        ),
+                      ],
+                    ),
+                    child: Center(
+                      child: _buildCenterDisplay(),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+
+                  if (_state == FlashState.waitingAnswer) ...[
+                    const Text(
+                      'Bé hãy đọc to đáp án vào Micro hoặc chọn số:',
+                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 12),
                     VoiceAnswerMicButton(
-                      onAnswerDetected: (answer, raw) {
-                        _checkAnswer(answer, 'voice');
+                      onAnswerDetected: (answer, raw) => _submitAnswer(answer, method: 'voice'),
+                      onHintRequested: (speech) {
+                        _audioService.speak('Gợi ý: Phép tính là ${_numbers.join(", ")}');
                       },
                     ),
+                    const SizedBox(height: 16),
+                    _buildQuickAnswerButtons(),
                   ],
-                ),
+
+                  if (_state == FlashState.finished) ...[
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: _isCorrect ? const Color(0xFFE8F7EE) : const Color(0xFFFFF1E8),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: _isCorrect ? AppColors.success : AppColors.error,
+                          width: 2,
+                        ),
+                      ),
+                      child: Column(
+                        children: [
+                          Text(
+                            _isCorrect ? '🎉 HOÀN TOÀN CHÍNH XÁC! 🎉' : 'BÉ CHƯA ĐÚNG RỒI!',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w900,
+                              color: _isCorrect ? AppColors.success : AppColors.error,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Đáp án đúng là: $_expectedAnswer (Bé chọn: $_userAnswer)',
+                            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                          ),
+                          if (_adaptiveNote.isNotEmpty) ...[
+                            const SizedBox(height: 8),
+                            Text(
+                              '💡 Thích ứng AI: $_adaptiveNote',
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(fontSize: 12, color: AppColors.textLight),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: Colors.white,
+                        minimumSize: const Size(double.infinity, 54),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+                      ),
+                      onPressed: _startFlashSession,
+                      icon: const Icon(Icons.refresh_rounded),
+                      label: const Text('BÀI TIẾP THEO', style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
+                    ),
+                  ],
+
+                  if (_state == FlashState.idle)
+                    ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.accentPurple,
+                        foregroundColor: Colors.white,
+                        minimumSize: const Size(double.infinity, 56),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                      ),
+                      onPressed: _startFlashSession,
+                      icon: const Icon(Icons.play_arrow_rounded, size: 28),
+                      label: const Text('BẮT ĐẦU CHỚP SỐ ⚡', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900)),
+                    ),
+                ],
               ),
-          ],
+            ),
+          ),
         ),
       ),
+    );
+  }
+
+  Widget _buildCenterDisplay() {
+    if (_state == FlashState.idle) {
+      return const Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text('⚡', style: TextStyle(fontSize: 64)),
+          SizedBox(height: 8),
+          Text(
+            'Nhấn nút để bắt đầu chớp số',
+            style: TextStyle(fontSize: 16, color: AppColors.textLight, fontWeight: FontWeight.w600),
+          ),
+        ],
+      );
+    }
+
+    if (_state == FlashState.flashing) {
+      final currentNum = _numbers[_currentIndex];
+      final sign = currentNum > 0 ? (_currentIndex > 0 ? '+' : '') : '';
+      return Text(
+        '$sign$currentNum',
+        style: TextStyle(
+          fontSize: 84,
+          fontWeight: FontWeight.w900,
+          color: currentNum > 0 ? AppColors.primary : AppColors.error,
+        ),
+      );
+    }
+
+    if (_state == FlashState.waitingAnswer) {
+      return const Text(
+        '?',
+        style: TextStyle(fontSize: 92, fontWeight: FontWeight.w900, color: AppColors.accentOrange),
+      );
+    }
+
+    return Text(
+      '$_expectedAnswer',
+      style: TextStyle(
+        fontSize: 84,
+        fontWeight: FontWeight.w900,
+        color: _isCorrect ? AppColors.success : AppColors.error,
+      ),
+    );
+  }
+
+  Widget _buildQuickAnswerButtons() {
+    final opts = <int>{_expectedAnswer};
+    final random = Random();
+    while (opts.length < 4) {
+      final fake = (_expectedAnswer + random.nextInt(7) - 3).clamp(0, 18);
+      opts.add(fake);
+    }
+    final list = opts.toList()..shuffle();
+
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      children: list.map((n) {
+        return ElevatedButton(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.white,
+            foregroundColor: AppColors.primary,
+            elevation: 2,
+            minimumSize: const Size(60, 54),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          ),
+          onPressed: () => _submitAnswer(n),
+          child: Text('$n', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900)),
+        );
+      }).toList(),
     );
   }
 }

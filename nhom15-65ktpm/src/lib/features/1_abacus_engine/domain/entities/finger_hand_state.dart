@@ -1,5 +1,4 @@
 import 'package:equatable/equatable.dart';
-
 import '../../../../core/services/audio_service.dart';
 
 enum HandType { rightHand, leftHand }
@@ -259,11 +258,9 @@ class FingerMathFormulaHelper {
     steps.add('✨ Kết quả: $finalDesc ➡️ Đáp án đúng là $expectedAnswer.');
     spokenParts.add('Kết quả chính xác là $expectedAnswer bé nhé!');
 
-    final spokenText = AudioService.normalizeToVietnamese(spokenParts.join(' '));
-
     return FingerMathGuidance(
       steps: steps,
-      spokenText: spokenText,
+      spokenText: AudioService.normalizeToVietnamese(spokenParts.join(' ')),
       expectedAnswer: expectedAnswer,
     );
   }
