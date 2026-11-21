@@ -29,8 +29,25 @@ class StreakCalculator {
       // Học ngày kế tiếp liên tục, tăng 1 ngày streak
       return currentStreak + 1;
     } else {
-      // Bị gián đoạn trên 1 ngày, reset streak về 1
+      // Bị gián đoạn trên 1 ngày (diffDays >= 2), reset streak về 1
       return 1;
     }
+  }
+
+  /// Định dạng ngày YYYY-MM-DD theo múi giờ địa phương
+  static String formatDate(DateTime date) {
+    final y = date.year.toString().padLeft(4, '0');
+    final m = date.month.toString().padLeft(2, '0');
+    final d = date.day.toString().padLeft(2, '0');
+    return '$y-$m-$d';
+  }
+
+  /// Kiểm tra xem bé đã hoàn thành bài tập trong ngày hôm nay chưa
+  static bool isCompletedToday(String? lastCompletedDate, DateTime today) {
+    if (lastCompletedDate == null || lastCompletedDate.trim().isEmpty) {
+      return false;
+    }
+    final todayStr = formatDate(today);
+    return lastCompletedDate.startsWith(todayStr);
   }
 }

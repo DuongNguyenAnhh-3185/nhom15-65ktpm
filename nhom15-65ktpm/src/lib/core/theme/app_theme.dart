@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../constants/app_colors.dart';
+import '../constants/app_dimensions.dart';
 
 class AppTheme {
   static ThemeData get kidTheme {
@@ -45,6 +46,7 @@ class AppTheme {
           elevation: 4,
           backgroundColor: AppColors.primary,
           foregroundColor: Colors.white,
+          minimumSize: const Size(AppDimensions.minTouchSize, AppDimensions.buttonHeight),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(24),
           ),
