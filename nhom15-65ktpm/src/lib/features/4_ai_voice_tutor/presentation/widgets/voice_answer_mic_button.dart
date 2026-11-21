@@ -3,14 +3,26 @@ import 'package:speech_to_text/speech_to_text.dart' as stt;
 import '../../../../core/constants/app_colors.dart';
 import '../../domain/usecases/vietnamese_number_extractor.dart';
 
+enum VoiceMicState {
+  idle,
+  listening,
+  processing,
+  hintShown,
+  error,
+}
+
 class VoiceAnswerMicButton extends StatefulWidget {
   final Function(int number, String rawSpeech) onAnswerDetected;
+  final Function(String speechOrReason)? onHintRequested;
   final Function(String statusMessage)? onStatusChanged;
+  final Function(String errorMessage)? onError;
 
   const VoiceAnswerMicButton({
     super.key,
     required this.onAnswerDetected,
+    this.onHintRequested,
     this.onStatusChanged,
+    this.onError,
   });
 
   @override
@@ -20,7 +32,7 @@ class VoiceAnswerMicButton extends StatefulWidget {
 class _VoiceAnswerMicButtonState extends State<VoiceAnswerMicButton>
     with SingleTickerProviderStateMixin {
   late stt.SpeechToText _speech;
-  bool _isListening = false;
+  VoiceMicState _state = VoiceMicState.idle;
   String _recognizedWords = '';
   late AnimationController _animController;
 
@@ -40,24 +52,39 @@ class _VoiceAnswerMicButtonState extends State<VoiceAnswerMicButton>
     super.dispose();
   }
 
+  void _setState(VoiceMicState newState) {
+    if (mounted) {
+      setState(() => _state = newState);
+    }
+  }
+
   Future<void> _toggleListening() async {
-    if (_isListening) {
+    if (_state == VoiceMicState.listening) {
       await _speech.stop();
-      setState(() => _isListening = false);
-      widget.onStatusChanged?.call('');
+      _setState(VoiceMicState.idle);
+      widget.onStatusChanged?.call('Đã dừng nghe.');
       return;
     }
 
     bool available = false;
     try {
       available = await _speech.initialize(
-        onStatus: (status) {
-          if (status == 'done' || status == 'notListening') {
-            if (mounted) setState(() => _isListening = false);
-          }
+        onError: (val) {
+          _setState(VoiceMicState.error);
+          widget.onStatusChanged?.call('Lỗi nhận diện giọng nói: ${val.errorMsg}');
+          widget.onError?.call(val.errorMsg);
+          Future.delayed(const Duration(seconds: 2), () {
+            if (mounted && _state == VoiceMicState.error) {
+              _setState(VoiceMicState.idle);
+            }
+          });
         },
-        onError: (_) {
-          if (mounted) setState(() => _isListening = false);
+        onStatus: (val) {
+          if (val == 'done' || val == 'notListening') {
+            if (_state == VoiceMicState.listening) {
+              _setState(VoiceMicState.idle);
+            }
+          }
         },
       );
     } catch (_) {
@@ -65,33 +92,49 @@ class _VoiceAnswerMicButtonState extends State<VoiceAnswerMicButton>
     }
 
     if (available) {
-      setState(() {
-        _isListening = true;
-        _recognizedWords = '';
-      });
-      widget.onStatusChanged?.call('Đang lắng nghe bé nói...');
+      _setState(VoiceMicState.listening);
+      _recognizedWords = '';
+      widget.onStatusChanged?.call('Đang lắng nghe bé nói... Hãy đọc to đáp án nhé!');
 
       await _speech.listen(
         listenOptions: stt.SpeechListenOptions(localeId: 'vi_VN'),
         onResult: (result) {
-          setState(() {
-            _recognizedWords = result.recognizedWords;
-          });
+          _recognizedWords = result.recognizedWords;
           widget.onStatusChanged?.call('Bé vừa nói: "$_recognizedWords"');
 
-          final number = VietnameseNumberExtractor.extractNumber(
-            result.recognizedWords,
-          );
-          if (number != null) {
+          final extraction = VietnameseNumberExtractor.extract(_recognizedWords);
+
+          // 1. Nếu bé nói "con không biết", "chịu", "khó quá" -> Kích hoạt gợi ý (hint)
+          if (extraction.isUnknown) {
             _speech.stop();
-            setState(() => _isListening = false);
-            widget.onAnswerDetected(number, result.recognizedWords);
+            _setState(VoiceMicState.hintShown);
+            widget.onStatusChanged?.call('Đừng lo bé nhé! Xem gợi ý thị phạm nào! 💡');
+            widget.onHintRequested?.call(_recognizedWords);
+            Future.delayed(const Duration(seconds: 3), () {
+              if (mounted && _state == VoiceMicState.hintShown) {
+                _setState(VoiceMicState.idle);
+              }
+            });
+            return;
+          }
+
+          // 2. Nếu trích xuất được số đáp án
+          if (extraction.isNumber && extraction.value != null) {
+            _speech.stop();
+            _setState(VoiceMicState.processing);
+            widget.onStatusChanged?.call('Đã nhận diện: ${extraction.value}');
+
+            Future.delayed(const Duration(milliseconds: 300), () {
+              if (mounted) {
+                _setState(VoiceMicState.idle);
+                widget.onAnswerDetected(extraction.value!, _recognizedWords);
+              }
+            });
           }
         },
       );
     } else {
-      // Nếu thiết bị không hỗ trợ Micro (ví dụ máy ảo hoặc web không cấp quyền),
-      // mở hộp thoại nhập nhanh giả lập giọng nói để thuận tiện kiểm thử
+      // Fallback khi trình duyệt / máy ảo không có quyền hoặc không hỗ trợ Web Speech API
       _showVoiceSimulationDialog();
     }
   }
@@ -102,35 +145,50 @@ class _VoiceAnswerMicButtonState extends State<VoiceAnswerMicButton>
       context: context,
       builder: (context) {
         return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
           title: const Row(
             children: [
               Text('🎙️ ', style: TextStyle(fontSize: 24)),
-              Text(
-                'Nói đáp án (Mô phỏng)',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              Expanded(
+                child: Text(
+                  'Nói đáp án (Mô phỏng AI)',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
               ),
             ],
           ),
           content: Column(
             mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text(
-                'Nhập câu bé đọc (ví dụ: "dạ bằng năm", "mười lăm"):',
+                'Nhập câu phát ngôn tự nhiên của bé:',
                 style: TextStyle(fontSize: 14),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 10),
               TextField(
                 controller: textController,
                 autofocus: true,
                 decoration: InputDecoration(
-                  hintText: 'Ví dụ: bằng năm',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
+                  hintText: 'Ví dụ: "dạ thưa cô bằng 15 ạ" hoặc "con không biết"',
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
                 ),
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                'Gợi ý câu mẫu nhanh:',
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.textLight),
+              ),
+              const SizedBox(height: 6),
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: [
+                  _quickPhraseChip(textController, 'dạ bằng năm'),
+                  _quickPhraseChip(textController, 'hai mươi mốt'),
+                  _quickPhraseChip(textController, 'mười lăm ạ'),
+                  _quickPhraseChip(textController, 'con không biết'),
+                ],
               ),
             ],
           ),
@@ -140,12 +198,24 @@ class _VoiceAnswerMicButtonState extends State<VoiceAnswerMicButton>
               child: const Text('Hủy'),
             ),
             ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
               onPressed: () {
                 final text = textController.text.trim();
                 Navigator.pop(context);
-                final number = VietnameseNumberExtractor.extractNumber(text);
-                if (number != null) {
-                  widget.onAnswerDetected(number, text);
+                final extraction = VietnameseNumberExtractor.extract(text);
+
+                if (extraction.isUnknown) {
+                  _setState(VoiceMicState.hintShown);
+                  widget.onHintRequested?.call(text);
+                  Future.delayed(const Duration(seconds: 3), () {
+                    if (mounted) _setState(VoiceMicState.idle);
+                  });
+                } else if (extraction.isNumber && extraction.value != null) {
+                  widget.onAnswerDetected(extraction.value!, text);
                 } else {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
@@ -163,37 +233,100 @@ class _VoiceAnswerMicButtonState extends State<VoiceAnswerMicButton>
     );
   }
 
+  Widget _quickPhraseChip(TextEditingController controller, String phrase) {
+    return ActionChip(
+      label: Text(phrase, style: const TextStyle(fontSize: 12)),
+      onPressed: () => controller.text = phrase,
+      backgroundColor: AppColors.cardBg,
+    );
+  }
+
+  Color _getButtonColor() {
+    switch (_state) {
+      case VoiceMicState.listening:
+        return AppColors.error;
+      case VoiceMicState.processing:
+        return AppColors.secondary;
+      case VoiceMicState.hintShown:
+        return AppColors.accentOrange;
+      case VoiceMicState.error:
+        return Colors.red.shade700;
+      case VoiceMicState.idle:
+        return AppColors.primary;
+    }
+  }
+
+  IconData _getIcon() {
+    switch (_state) {
+      case VoiceMicState.listening:
+        return Icons.mic;
+      case VoiceMicState.processing:
+        return Icons.hourglass_top;
+      case VoiceMicState.hintShown:
+        return Icons.lightbulb;
+      case VoiceMicState.error:
+        return Icons.mic_off;
+      case VoiceMicState.idle:
+        return Icons.mic_none;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final color = _getButtonColor();
+    final icon = _getIcon();
+
     return AnimatedBuilder(
       animation: _animController,
       builder: (context, child) {
-        final scale = _isListening ? 1.0 + (_animController.value * 0.15) : 1.0;
+        final scale = _state == VoiceMicState.listening
+            ? 1.0 + (_animController.value * 0.14)
+            : 1.0;
+
         return Transform.scale(
           scale: scale,
-          child: GestureDetector(
-            onTap: _toggleListening,
-            child: Container(
-              width: 76,
-              height: 76,
-              decoration: BoxDecoration(
-                color: _isListening ? AppColors.error : AppColors.primary,
-                shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                    color: (_isListening ? AppColors.error : AppColors.primary)
-                        .withOpacity(0.4),
-                    blurRadius: _isListening ? 20 : 10,
-                    spreadRadius: _isListening ? 4 : 1,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              GestureDetector(
+                onTap: _toggleListening,
+                child: Container(
+                  width: 76,
+                  height: 76,
+                  decoration: BoxDecoration(
+                    color: color,
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: color.withValues(alpha: _state == VoiceMicState.listening ? 0.45 : 0.25),
+                        blurRadius: _state == VoiceMicState.listening ? 22 : 10,
+                        spreadRadius: _state == VoiceMicState.listening ? 5 : 1,
+                      ),
+                    ],
                   ),
-                ],
+                  child: Icon(
+                    icon,
+                    color: Colors.white,
+                    size: 38,
+                  ),
+                ),
               ),
-              child: Icon(
-                _isListening ? Icons.mic : Icons.mic_none,
-                color: Colors.white,
-                size: 38,
+              const SizedBox(height: 6),
+              Text(
+                _state == VoiceMicState.listening
+                    ? 'Đang nghe...'
+                    : _state == VoiceMicState.hintShown
+                        ? 'Gợi ý!'
+                        : _state == VoiceMicState.processing
+                            ? 'Xử lý...'
+                            : 'Bấm để nói',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: color,
+                ),
               ),
-            ),
+            ],
           ),
         );
       },

@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/services/audio_service.dart';
+import '../../../../core/services/reminder_service.dart';
 import '../../../../core/services/storage_service.dart';
 import '../../../../injection_container.dart';
 import '../../../../shared/entities/child_profile.dart';
 import '../../../../shared/widgets/mascot_bubble.dart';
 import 'package:soroban_kids_app/features/1_abacus_engine/presentation/controllers/finger_math_controller.dart';
 import 'package:soroban_kids_app/features/1_abacus_engine/presentation/widgets/finger_math_board_widget.dart';
+import 'package:soroban_kids_app/features/3_lessons_flash_anzan/presentation/screens/flash_anzan_screen.dart';
 import 'package:soroban_kids_app/features/3_lessons_flash_anzan/presentation/screens/lesson_play_screen.dart';
 import '../widgets/parental_gate_dialog.dart';
 import 'parent_dashboard_screen.dart';
@@ -22,6 +24,7 @@ class _HomeScreenState extends State<HomeScreen> {
   final AudioService _audioService = sl<AudioService>();
   final StorageService _storageService = sl<StorageService>();
   ChildProfile? _profile;
+  bool _showReminderBanner = false;
 
   @override
   void initState() {
@@ -31,7 +34,19 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _loadProfile() async {
     final profile = await _storageService.getChildProfile();
-    setState(() => _profile = profile);
+    final reminderSettings = await ReminderService.getSettings();
+    final showReminder = ReminderService.shouldShowInAppReminder(
+      settings: reminderSettings,
+      profile: profile,
+    );
+
+    if (mounted) {
+      setState(() {
+        _profile = profile;
+        _showReminderBanner = showReminder;
+      });
+    }
+
     _audioService.speak(
       'Chào mừng bé đến với thế giới Finger Math toán ngón tay kỳ diệu! Bé chọn bài học nhé!',
     );
@@ -99,13 +114,17 @@ class _HomeScreenState extends State<HomeScreen> {
                 onPressed: () {
                   _audioService.speak(fingerController.speechDescription);
                 },
-                icon: const Icon(Icons.volume_up, size: 24),
-                label: const Text('Đọc Số Này Cho Bé Nghe'),
+                icon: const Icon(Icons.volume_up_rounded, color: Colors.white),
+                label: const Text(
+                  'Đọc Số Bàn Tay Này 🔊',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.secondary,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 24,
-                    vertical: 12,
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  minimumSize: const Size(double.infinity, 50),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
                   ),
                 ),
               ),
@@ -136,10 +155,10 @@ class _HomeScreenState extends State<HomeScreen> {
                       vertical: 8,
                     ),
                     decoration: BoxDecoration(
-                      color: AppColors.accentOrange.withOpacity(0.15),
+                      color: AppColors.accentOrange.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(20),
                       border: Border.all(
-                        color: AppColors.accentOrange.withOpacity(0.4),
+                        color: AppColors.accentOrange.withValues(alpha: 0.4),
                       ),
                     ),
                     child: Row(
@@ -147,7 +166,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         const Text('🔥', style: TextStyle(fontSize: 20)),
                         const SizedBox(width: 6),
                         Text(
-                          '${_profile?.streakCount ?? 3} Ngày',
+                          '${_profile?.streakCount ?? 1} Ngày',
                           style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w800,
@@ -169,7 +188,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             MaterialPageRoute(
                               builder: (_) => const ParentDashboardScreen(),
                             ),
-                          );
+                          ).then((_) => _loadProfile());
                         },
                       );
                     },
@@ -180,7 +199,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         shape: BoxShape.circle,
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.08),
+                            color: Colors.black.withValues(alpha: 0.08),
                             blurRadius: 8,
                           ),
                         ],
@@ -194,7 +213,12 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ],
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
+
+              // Banner nhắc nhở học cố định 19:00 (nếu đến giờ mà chưa luyện tập hôm nay)
+              if (_showReminderBanner) _buildReminderBanner(),
+
+              const SizedBox(height: 12),
 
               // Linh vật hoạt hình Mascot
               MascotBubbleWidget(
@@ -222,7 +246,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     MaterialPageRoute(
                       builder: (_) => const LessonPlayScreen(level: 1),
                     ),
-                  );
+                  ).then((_) => _loadProfile());
                 },
               ),
               const SizedBox(height: 16),
@@ -240,7 +264,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     MaterialPageRoute(
                       builder: (_) => const LessonPlayScreen(level: 2),
                     ),
-                  );
+                  ).then((_) => _loadProfile());
                 },
               ),
               const SizedBox(height: 16),
@@ -251,7 +275,14 @@ class _HomeScreenState extends State<HomeScreen> {
                 color: AppColors.accentPurple,
                 emoji: '⚡',
                 badgeText: 'Siêu Tốc',
-                onTap: () {},
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const FlashAnzanScreen(),
+                    ),
+                  ).then((_) => _loadProfile());
+                },
               ),
               const SizedBox(height: 20),
 
@@ -280,6 +311,68 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  Widget _buildReminderBanner() {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.accentOrange.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.accentOrange.withValues(alpha: 0.5)),
+      ),
+      child: Row(
+        children: [
+          const Text('⏰', style: TextStyle(fontSize: 26)),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Đã 19:00 rồi! Giờ luyện tập Finger Math!',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                    color: AppColors.accentOrange,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                const Text(
+                  'Cùng luyện tập để giữ ngọn lửa chuỗi Streak nhé bé ơi! 🔥',
+                  style: TextStyle(fontSize: 12, color: AppColors.textDark),
+                ),
+                const SizedBox(height: 6),
+                InkWell(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const LessonPlayScreen(level: 1),
+                      ),
+                    ).then((_) => _loadProfile());
+                  },
+                  child: const Text(
+                    '👉 Bắt đầu ngay!',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                      color: AppColors.primary,
+                      decoration: TextDecoration.underline,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.close, size: 18, color: AppColors.textLight),
+            onPressed: () => setState(() => _showReminderBanner = false),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildLevelCard({
     required String title,
     required String subtitle,
@@ -297,7 +390,7 @@ class _HomeScreenState extends State<HomeScreen> {
           borderRadius: BorderRadius.circular(28),
           boxShadow: [
             BoxShadow(
-              color: color.withOpacity(0.35),
+              color: color.withValues(alpha: 0.35),
               blurRadius: 14,
               offset: const Offset(0, 6),
             ),
@@ -309,7 +402,7 @@ class _HomeScreenState extends State<HomeScreen> {
               width: 68,
               height: 68,
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.25),
+                color: Colors.white.withValues(alpha: 0.25),
                 shape: BoxShape.circle,
               ),
               child: Center(
@@ -350,14 +443,15 @@ class _HomeScreenState extends State<HomeScreen> {
                       fontSize: 16,
                       fontWeight: FontWeight.w900,
                       color: Colors.white,
+                      letterSpacing: 0.3,
                     ),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     subtitle,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 13,
-                      color: Colors.white70,
+                      color: Colors.white.withValues(alpha: 0.9),
                       fontWeight: FontWeight.w500,
                     ),
                   ),
