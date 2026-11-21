@@ -46,13 +46,25 @@ class AppTheme {
           elevation: 4,
           backgroundColor: AppColors.primary,
           foregroundColor: Colors.white,
-          minimumSize: const Size(AppDimensions.minTouchSize, AppDimensions.buttonHeight),
+          minimumSize: const Size(
+              AppDimensions.minTouchSize, AppDimensions.buttonHeight),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(24),
           ),
           textStyle: GoogleFonts.quicksand(
             fontSize: 20,
             fontWeight: FontWeight.w700,
+          ),
+        ),
+      ),
+      iconButtonTheme: IconButtonThemeData(
+        style: IconButton.styleFrom(
+          minimumSize: const Size(
+            AppDimensions.minTouchSize,
+            AppDimensions.minTouchSize,
+          ),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppDimensions.radiusMedium),
           ),
         ),
       ),
