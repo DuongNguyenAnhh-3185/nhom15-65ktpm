@@ -22,6 +22,7 @@ class _LessonPlayScreenState extends State<LessonPlayScreen> {
 
   bool get _isLevel2 => widget.level == 2;
 
+  bool _showHint = false;
   bool _hasCheckedAnswer = false;
   bool _answeredCorrectly = false;
   int _questionNumber = 1;
@@ -44,6 +45,7 @@ class _LessonPlayScreenState extends State<LessonPlayScreen> {
       _isLevel2 ? QuestionLevel.friendRules : QuestionLevel.basic,
     );
     _fingerController.setValue(_question.operands.first);
+    _showHint = false;
     _hasCheckedAnswer = false;
     _answeredCorrectly = false;
     if (!isFirstQuestion) _questionNumber++;
@@ -143,22 +145,19 @@ class _LessonPlayScreenState extends State<LessonPlayScreen> {
                       if (_isLevel2)
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 20),
-                          child: _buildFriendRuleCard(secondOperand),
+                          child: _buildHintSection(secondOperand),
                         ),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 24),
-                        child: Text(
-                          _isLevel2
-                              ? _question.type == QuestionType.smallFriend
-                                  ? 'Dùng quy tắc bù 5 để tính nhé!'
-                                  : 'Dùng quy tắc bù 10 bằng hai bàn tay nhé!'
-                              : isAddition
-                                  ? 'Bắt đầu từ $firstOperand rồi xòe thêm $secondOperand nhé.'
-                                  : 'Bắt đầu từ $firstOperand rồi gập bớt $secondOperand nhé.',
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(color: AppColors.textLight),
+                      if (!_isLevel2)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 24),
+                          child: Text(
+                            isAddition
+                                ? 'Bắt đầu từ $firstOperand rồi xòe thêm $secondOperand nhé.'
+                                : 'Bắt đầu từ $firstOperand rồi gập bớt $secondOperand nhé.',
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(color: AppColors.textLight),
+                          ),
                         ),
-                      ),
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 12),
                         child: FingerMathBoardWidget(
@@ -219,7 +218,7 @@ class _LessonPlayScreenState extends State<LessonPlayScreen> {
     );
   }
 
-  Widget _buildFriendRuleCard(int secondOperand) {
+  Widget _buildHintSection(int secondOperand) {
     final isSmallFriend = _question.type == QuestionType.smallFriend;
     final base = isSmallFriend ? 5 : 10;
     final complement = base - secondOperand;
@@ -227,41 +226,106 @@ class _LessonPlayScreenState extends State<LessonPlayScreen> {
     final rule = isAddition
         ? '+$secondOperand = +$base - $complement'
         : '-$secondOperand = -$base + $complement';
+    final instruction = isAddition
+        ? 'Bé hãy thêm $base trước, rồi bớt lại $complement nhé!'
+        : 'Bé hãy bớt $base trước, rồi thêm lại $complement nhé!';
 
-    return Container(
-      width: double.infinity,
-      margin: const EdgeInsets.symmetric(vertical: 4),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      decoration: BoxDecoration(
-        color: isSmallFriend ? Colors.green.shade50 : Colors.orange.shade50,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: isSmallFriend ? Colors.green.shade300 : Colors.orange.shade300,
+    return Column(
+      children: [
+        FilledButton.icon(
+          onPressed: () => setState(() => _showHint = !_showHint),
+          icon: Icon(
+            _showHint ? Icons.lightbulb : Icons.lightbulb_outline,
+            size: 23,
+          ),
+          label: Text(_showHint ? 'ẨN GỢI Ý' : 'GỢI Ý'),
+          style: FilledButton.styleFrom(
+            backgroundColor: AppColors.accentOrange,
+            foregroundColor: Colors.white,
+            elevation: 3,
+            shadowColor: AppColors.accentOrange.withValues(alpha: 0.4),
+            textStyle: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 0.4,
+            ),
+            minimumSize: const Size(0, 52),
+            padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 10),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(24),
+            ),
+          ),
         ),
-      ),
-      child: Column(
-        children: [
-          Text(
-            isSmallFriend ? 'ANH BẠN NHỎ · BÙ 5' : 'ANH BẠN LỚN · BÙ 10',
-            style: TextStyle(
-              color: isSmallFriend
-                  ? Colors.green.shade800
-                  : Colors.orange.shade900,
-              fontWeight: FontWeight.w900,
-              fontSize: 13,
+        if (_showHint)
+          Container(
+            width: double.infinity,
+            margin: const EdgeInsets.only(bottom: 8),
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: const Color(0xFFFFF4DE),
+              borderRadius: BorderRadius.circular(18),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Container(
+                      width: 54,
+                      height: 54,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFD8EFF5),
+                        borderRadius: BorderRadius.circular(18),
+                      ),
+                      child: const Text('🐼', style: TextStyle(fontSize: 36)),
+                    ),
+                    const SizedBox(width: 10),
+                    const Text(
+                      'Panda hướng dẫn bé',
+                      style: TextStyle(
+                        color: AppColors.textDark,
+                        fontSize: 17,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                Text(
+                  instruction,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: Color(0xFF9E4517),
+                    fontSize: 17,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  rule,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: Color(0xFF9E4517),
+                    fontSize: 22,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                const Text(
+                  'Hãy quan sát bàn tay để thực hiện theo hướng dẫn nhé!',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Color(0xFF9E4517),
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 3),
-          Text(
-            rule,
-            style: const TextStyle(
-              color: AppColors.textDark,
-              fontSize: 20,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-        ],
-      ),
+      ],
     );
   }
 
