@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../../../core/constants/app_colors.dart';
+import '../../../../core/constants/app_dimensions.dart';
 import '../../../../core/services/audio_service.dart';
 import '../../../../core/services/reminder_service.dart';
 import '../../../../core/services/storage_service.dart';
@@ -46,10 +48,6 @@ class _HomeScreenState extends State<HomeScreen> {
         _showReminderBanner = showReminder;
       });
     }
-
-    _audioService.speak(
-      'Chào mừng bé đến với thế giới Finger Math toán ngón tay kỳ diệu! Bé chọn bài học nhé!',
-    );
   }
 
   void _openFreePlayModal() {
@@ -81,26 +79,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
               const SizedBox(height: 12),
-              const Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text('✋ ', style: TextStyle(fontSize: 24)),
-                  Text(
-                    'Bàn Tay Finger Math Tự Do',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w900,
-                      color: AppColors.textDark,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 6),
-              const Text(
-                'Bé chạm vào các ngón trên Tay Phải (đơn vị: 0-9) và Tay Trái (hàng chục: 10-90) nhé!',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 13, color: AppColors.textLight),
-              ),
+              const Text('✋', style: TextStyle(fontSize: 40)),
               const SizedBox(height: 12),
               Expanded(
                 child: FingerMathBoardWidget(
@@ -112,19 +91,21 @@ class _HomeScreenState extends State<HomeScreen> {
               const SizedBox(height: 8),
               ElevatedButton.icon(
                 onPressed: () {
+                  HapticFeedback.selectionClick();
                   _audioService.speak(fingerController.speechDescription);
                 },
-                icon: const Icon(Icons.volume_up_rounded, color: Colors.white),
-                label: const Text(
-                  'Đọc Số Bàn Tay Này 🔊',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                ),
+                icon: const Icon(Icons.volume_up_rounded, size: 28),
+                label: const Text(''),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: Colors.white,
-                  minimumSize: const Size(double.infinity, 50),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
+                  backgroundColor: AppColors.secondary,
+                  foregroundColor: AppColors.textDark,
+                  minimumSize: const Size(
+                    AppDimensions.minTouchSize,
+                    AppDimensions.buttonHeight,
+                  ),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 12,
                   ),
                 ),
               ),
@@ -167,6 +148,10 @@ class _HomeScreenState extends State<HomeScreen> {
                   // Nút Cổng Phụ Huynh (Parental Gate)
                   IconButton(
                     tooltip: 'Phụ huynh',
+                    constraints: const BoxConstraints(
+                      minWidth: AppDimensions.minTouchSize,
+                      minHeight: AppDimensions.minTouchSize,
+                    ),
                     onPressed: () {
                       ParentalGateDialog.show(
                         context,
@@ -301,7 +286,8 @@ class _HomeScreenState extends State<HomeScreen> {
       decoration: BoxDecoration(
         color: AppColors.accentOrange.withValues(alpha: 0.14),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.accentOrange.withValues(alpha: 0.5)),
+        border:
+            Border.all(color: AppColors.accentOrange.withValues(alpha: 0.5)),
       ),
       child: Row(
         children: [
@@ -368,10 +354,13 @@ class _HomeScreenState extends State<HomeScreen> {
       label: '$title. $subtitle. $badgeText',
       button: true,
       child: InkWell(
-        onTap: onTap,
+        onTap: () {
+          HapticFeedback.selectionClick();
+          onTap();
+        },
         borderRadius: BorderRadius.circular(28),
         child: Container(
-          constraints: const BoxConstraints(minHeight: 104),
+          constraints: const BoxConstraints(minHeight: 112),
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
             color: color,
