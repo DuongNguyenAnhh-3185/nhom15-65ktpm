@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 
 class AppColors {
-  // Primary kid-friendly palette
-  static const Color primary = Color(0xFFFF6B6B); // San hô tươi sáng
-  static const Color secondary = Color(0xFF4ECDC4); // Xanh ngọc biển
-  static const Color accentYellow = Color(0xFFFFE66D); // Vàng nắng
-  static const Color accentPurple = Color(0xFF9D4EDD); // Tím mộng mơ
-  static const Color accentOrange = Color(0xFFFF9F1C); // Cam năng động
+  // Zero-Text kid palette
+  static const Color primary = Color(0xFFE05638); // Cam đất
+  static const Color secondary = Color(0xFFFACC15); // Vàng chuối
+  static const Color accentYellow = secondary;
+  static const Color accentPurple = Color(0xFF8B5CF6); // Tím mộng mơ
+  static const Color accentOrange = primary;
   
   // Backgrounds
   static const Color background = Color(0xFFF7F9FC);

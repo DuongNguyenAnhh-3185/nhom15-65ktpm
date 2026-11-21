@@ -51,7 +51,7 @@ class _KidButtonState extends State<KidButton>
             borderRadius: BorderRadius.circular(AppDimensions.radiusMedium),
             boxShadow: [
               BoxShadow(
-                color: widget.backgroundColor.withOpacity(0.4),
+                color: widget.backgroundColor.withValues(alpha: 0.4),
                 blurRadius: 10,
                 offset: const Offset(0, 4),
               ),
