@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import '../../../../core/services/audio_service.dart';
 
 enum HandType { rightHand, leftHand }
 
@@ -259,7 +260,7 @@ class FingerMathFormulaHelper {
 
     return FingerMathGuidance(
       steps: steps,
-      spokenText: spokenParts.join(' '),
+      spokenText: AudioService.normalizeToVietnamese(spokenParts.join(' ')),
       expectedAnswer: expectedAnswer,
     );
   }

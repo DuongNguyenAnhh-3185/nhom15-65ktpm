@@ -72,7 +72,7 @@ class _VoiceAnswerMicButtonState extends State<VoiceAnswerMicButton>
       widget.onStatusChanged?.call('Đang lắng nghe bé nói...');
 
       await _speech.listen(
-        localeId: 'vi_VN',
+        listenOptions: stt.SpeechListenOptions(localeId: 'vi_VN'),
         onResult: (result) {
           setState(() {
             _recognizedWords = result.recognizedWords;

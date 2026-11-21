@@ -7,6 +7,9 @@ class AttemptLog extends Equatable {
   final int responseTimeMs;
   final String answeredVia; // 'voice' hoặc 'abacus_touch'
   final String timestamp;
+  final int difficultyLevel;
+  final int flashAnzanSpeedMs;
+  final String questionText;
 
   const AttemptLog({
     required this.questionId,
@@ -15,6 +18,9 @@ class AttemptLog extends Equatable {
     required this.responseTimeMs,
     required this.answeredVia,
     required this.timestamp,
+    this.difficultyLevel = 1,
+    this.flashAnzanSpeedMs = 1200,
+    this.questionText = '',
   });
 
   Map<String, dynamic> toMap() {
@@ -25,6 +31,9 @@ class AttemptLog extends Equatable {
       'responseTimeMs': responseTimeMs,
       'answeredVia': answeredVia,
       'timestamp': timestamp,
+      'difficultyLevel': difficultyLevel,
+      'flashAnzanSpeedMs': flashAnzanSpeedMs,
+      'questionText': questionText,
     };
   }
 
@@ -36,6 +45,9 @@ class AttemptLog extends Equatable {
       responseTimeMs: map['responseTimeMs'] ?? 0,
       answeredVia: map['answeredVia'] ?? 'abacus_touch',
       timestamp: map['timestamp'] ?? '',
+      difficultyLevel: map['difficultyLevel'] ?? 1,
+      flashAnzanSpeedMs: map['flashAnzanSpeedMs'] ?? 1200,
+      questionText: map['questionText'] ?? '',
     );
   }
 
@@ -47,5 +59,8 @@ class AttemptLog extends Equatable {
         responseTimeMs,
         answeredVia,
         timestamp,
+        difficultyLevel,
+        flashAnzanSpeedMs,
+        questionText,
       ];
 }
