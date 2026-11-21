@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/services/audio_service.dart';
-import '../../../../core/services/storage_service.dart';
 import '../../../../injection_container.dart';
-import '../../../../shared/entities/child_profile.dart';
 import '../../../../shared/widgets/mascot_bubble.dart';
 import 'package:soroban_kids_app/features/1_abacus_engine/presentation/controllers/finger_math_controller.dart';
 import 'package:soroban_kids_app/features/1_abacus_engine/presentation/widgets/finger_math_board_widget.dart';
@@ -21,18 +19,10 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final AudioService _audioService = sl<AudioService>();
-  final StorageService _storageService = sl<StorageService>();
-  ChildProfile? _profile;
 
   @override
   void initState() {
     super.initState();
-    _loadProfile();
-  }
-
-  Future<void> _loadProfile() async {
-    final profile = await _storageService.getChildProfile();
-    setState(() => _profile = profile);
     _audioService.speak(
       'Chào mừng bé đến với thế giới Finger Math toán ngón tay kỳ diệu! Bé chọn bài học nhé!',
     );
@@ -130,37 +120,26 @@ class _HomeScreenState extends State<HomeScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  // Huy hiệu Streak
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 8,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AppColors.accentOrange.withOpacity(0.15),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                        color: AppColors.accentOrange.withOpacity(0.4),
+                  Semantics(
+                    label: 'Chuỗi ngày học',
+                    button: false,
+                    child: Container(
+                      width: 56,
+                      height: 56,
+                      decoration: BoxDecoration(
+                        color: AppColors.accentYellow,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: AppColors.primary, width: 2),
                       ),
-                    ),
-                    child: Row(
-                      children: [
-                        const Text('🔥', style: TextStyle(fontSize: 20)),
-                        const SizedBox(width: 6),
-                        Text(
-                          '${_profile?.streakCount ?? 3} Ngày',
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w800,
-                            color: AppColors.accentOrange,
-                          ),
-                        ),
-                      ],
+                      child: const Center(
+                        child: Text('🔥', style: TextStyle(fontSize: 28)),
+                      ),
                     ),
                   ),
 
                   // Nút Cổng Phụ Huynh (Parental Gate)
                   IconButton(
+                    tooltip: 'Phụ huynh',
                     onPressed: () {
                       ParentalGateDialog.show(
                         context,
@@ -181,7 +160,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         shape: BoxShape.circle,
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.08),
+                            color: Colors.black.withValues(alpha: 0.08),
                             blurRadius: 8,
                           ),
                         ],
@@ -262,22 +241,17 @@ class _HomeScreenState extends State<HomeScreen> {
               const SizedBox(height: 20),
 
               // Nút Bàn tay Finger Math tự do
-              OutlinedButton.icon(
+              OutlinedButton(
                 onPressed: _openFreePlayModal,
-                icon: const Icon(Icons.front_hand, size: 26),
-                label: const Text('BÀN TAY FINGER MATH (CHƠI TỰ DO) ✋'),
                 style: OutlinedButton.styleFrom(
-                  foregroundColor: AppColors.textDark,
+                  foregroundColor: AppColors.primary,
                   side: const BorderSide(color: AppColors.primary, width: 2),
-                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  minimumSize: const Size(48, 64),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(20),
                   ),
-                  textStyle: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w800,
-                  ),
                 ),
+                child: const Text('✋', style: TextStyle(fontSize: 34)),
               ),
             ],
           ),
@@ -294,88 +268,45 @@ class _HomeScreenState extends State<HomeScreen> {
     required String badgeText,
     required VoidCallback onTap,
   }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: color,
-          borderRadius: BorderRadius.circular(28),
-          boxShadow: [
-            BoxShadow(
-              color: color.withOpacity(0.35),
-              blurRadius: 14,
-              offset: const Offset(0, 6),
+    return Semantics(
+      label: title,
+      button: true,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(28),
+        child: Container(
+          constraints: const BoxConstraints(minHeight: 104),
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: BorderRadius.circular(28),
+            border: Border.all(
+              color: badgeText == 'Công Thức'
+                  ? AppColors.accentYellow
+                  : Colors.white,
+              width: 3,
             ),
-          ],
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 68,
-              height: 68,
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.25),
+            boxShadow: [
+              BoxShadow(
+                color: color.withValues(alpha: 0.35),
+                blurRadius: 14,
+                offset: const Offset(0, 6),
+              ),
+            ],
+          ),
+          child: Center(
+            child: Container(
+              width: 72,
+              height: 72,
+              decoration: const BoxDecoration(
+                color: Colors.white,
                 shape: BoxShape.circle,
               ),
               child: Center(
-                child: Text(emoji, style: const TextStyle(fontSize: 34)),
+                child: Text(emoji, style: const TextStyle(fontSize: 42)),
               ),
             ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          badgeText,
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w800,
-                            color: color,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w900,
-                      color: Colors.white,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    subtitle,
-                    style: const TextStyle(
-                      fontSize: 13,
-                      color: Colors.white70,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const Icon(
-              Icons.arrow_forward_ios_rounded,
-              color: Colors.white,
-              size: 20,
-            ),
-          ],
+          ),
         ),
       ),
     );

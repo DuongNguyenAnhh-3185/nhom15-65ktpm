@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../core/constants/app_colors.dart';
+import '../../core/constants/app_dimensions.dart';
 
 class MascotBubbleWidget extends StatelessWidget {
   final String speechText;
@@ -16,60 +17,54 @@ class MascotBubbleWidget extends StatelessWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        // Linh vật gấu trúc Panda dễ thương
-        GestureDetector(
-          onTap: onMascotTap,
-          child: Container(
-            width: 72,
-            height: 72,
-            decoration: BoxDecoration(
-              color: AppColors.accentYellow,
-              shape: BoxShape.circle,
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.accentYellow.withOpacity(0.4),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: const Center(
-              child: Text(
-                '🐼',
-                style: TextStyle(fontSize: 42),
+        Semantics(
+          label: 'Linh vật Panda',
+          button: true,
+          child: GestureDetector(
+            onTap: onMascotTap,
+            child: Container(
+              width: 84,
+              height: 84,
+              decoration: BoxDecoration(
+                color: AppColors.accentYellow,
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.accentYellow.withValues(alpha: 0.4),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: const Center(
+                child: Text('🐼', style: TextStyle(fontSize: 48)),
               ),
             ),
           ),
         ),
         const SizedBox(width: 12),
-        // Hộp thoại lời nói
         Expanded(
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            constraints: const BoxConstraints(
+              minHeight: AppDimensions.minTouchSize,
+            ),
+            padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: AppColors.accentPurple,
               borderRadius: const BorderRadius.only(
                 topLeft: Radius.circular(20),
                 topRight: Radius.circular(20),
                 bottomRight: Radius.circular(20),
                 bottomLeft: Radius.circular(4),
               ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.06),
-                  blurRadius: 12,
-                  offset: const Offset(0, 4),
-                ),
-              ],
             ),
-            child: Text(
-              speechText,
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
-                color: AppColors.textDark,
-                height: 1.3,
-              ),
+            child: const Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                Text('✋', style: TextStyle(fontSize: 34)),
+                Text('➕', style: TextStyle(fontSize: 34)),
+                Text('⚡', style: TextStyle(fontSize: 34)),
+              ],
             ),
           ),
         ),
