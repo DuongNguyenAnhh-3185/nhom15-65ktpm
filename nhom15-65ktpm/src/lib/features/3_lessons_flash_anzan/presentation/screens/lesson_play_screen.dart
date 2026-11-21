@@ -5,7 +5,7 @@ import 'package:soroban_kids_app/features/1_abacus_engine/presentation/widgets/f
 import 'package:soroban_kids_app/features/question_generator/domain/question_generator.dart';
 import 'package:soroban_kids_app/shared/entities/soroban_question.dart';
 
-/// Level 1 play flow: the child calculates with the interactive right hand.
+/// Arithmetic practice for basic and friend-rule levels.
 class LessonPlayScreen extends StatefulWidget {
   const LessonPlayScreen({super.key, this.level = 1});
 
@@ -20,6 +20,8 @@ class _LessonPlayScreenState extends State<LessonPlayScreen> {
   late final FingerMathController _fingerController;
   late SorobanQuestion _question;
 
+  bool get _isLevel2 => widget.level == 2;
+
   bool _hasCheckedAnswer = false;
   bool _answeredCorrectly = false;
   int _questionNumber = 1;
@@ -27,7 +29,7 @@ class _LessonPlayScreenState extends State<LessonPlayScreen> {
   @override
   void initState() {
     super.initState();
-    _fingerController = FingerMathController(showLeftHand: false);
+    _fingerController = FingerMathController(showLeftHand: _isLevel2);
     _loadQuestion(isFirstQuestion: true);
   }
 
@@ -38,7 +40,9 @@ class _LessonPlayScreenState extends State<LessonPlayScreen> {
   }
 
   void _loadQuestion({bool isFirstQuestion = false}) {
-    _question = _generator.generateForLevel(QuestionLevel.basic);
+    _question = _generator.generateForLevel(
+      _isLevel2 ? QuestionLevel.friendRules : QuestionLevel.basic,
+    );
     _fingerController.setValue(_question.operands.first);
     _hasCheckedAnswer = false;
     _answeredCorrectly = false;
@@ -72,7 +76,11 @@ class _LessonPlayScreenState extends State<LessonPlayScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Cấp độ 1 · Bé cùng tính nhé!'),
+        title: Text(
+          _isLevel2
+              ? 'Cấp độ 2 · Anh bạn nhỏ & Anh bạn lớn'
+              : 'Cấp độ 1 · Bé cùng tính nhé!',
+        ),
         backgroundColor: AppColors.cardBg,
       ),
       body: SafeArea(
@@ -132,12 +140,21 @@ class _LessonPlayScreenState extends State<LessonPlayScreen> {
                           ),
                         ),
                       ),
+                      if (_isLevel2)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 20),
+                          child: _buildFriendRuleCard(secondOperand),
+                        ),
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 24),
                         child: Text(
-                          isAddition
-                              ? 'Bắt đầu từ $firstOperand rồi xòe thêm $secondOperand nhé.'
-                              : 'Bắt đầu từ $firstOperand rồi gập bớt $secondOperand nhé.',
+                          _isLevel2
+                              ? _question.type == QuestionType.smallFriend
+                                  ? 'Dùng quy tắc bù 5 để tính nhé!'
+                                  : 'Dùng quy tắc bù 10 bằng hai bàn tay nhé!'
+                              : isAddition
+                                  ? 'Bắt đầu từ $firstOperand rồi xòe thêm $secondOperand nhé.'
+                                  : 'Bắt đầu từ $firstOperand rồi gập bớt $secondOperand nhé.',
                           textAlign: TextAlign.center,
                           style: const TextStyle(color: AppColors.textLight),
                         ),
@@ -198,6 +215,52 @@ class _LessonPlayScreenState extends State<LessonPlayScreen> {
             );
           },
         ),
+      ),
+    );
+  }
+
+  Widget _buildFriendRuleCard(int secondOperand) {
+    final isSmallFriend = _question.type == QuestionType.smallFriend;
+    final base = isSmallFriend ? 5 : 10;
+    final complement = base - secondOperand;
+    final isAddition = _question.operation == ArithmeticOperation.addition;
+    final rule = isAddition
+        ? '+$secondOperand = +$base - $complement'
+        : '-$secondOperand = -$base + $complement';
+
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.symmetric(vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      decoration: BoxDecoration(
+        color: isSmallFriend ? Colors.green.shade50 : Colors.orange.shade50,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isSmallFriend ? Colors.green.shade300 : Colors.orange.shade300,
+        ),
+      ),
+      child: Column(
+        children: [
+          Text(
+            isSmallFriend ? 'ANH BẠN NHỎ · BÙ 5' : 'ANH BẠN LỚN · BÙ 10',
+            style: TextStyle(
+              color: isSmallFriend
+                  ? Colors.green.shade800
+                  : Colors.orange.shade900,
+              fontWeight: FontWeight.w900,
+              fontSize: 13,
+            ),
+          ),
+          const SizedBox(height: 3),
+          Text(
+            rule,
+            style: const TextStyle(
+              color: AppColors.textDark,
+              fontSize: 20,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+        ],
       ),
     );
   }
