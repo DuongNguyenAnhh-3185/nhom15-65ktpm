@@ -1,5 +1,7 @@
 import 'package:equatable/equatable.dart';
 
+import '../../../../core/services/audio_service.dart';
+
 enum HandType { rightHand, leftHand }
 
 /// Trạng thái một bàn tay trong hệ thống Finger Math chuẩn 2 bàn tay:
@@ -257,9 +259,11 @@ class FingerMathFormulaHelper {
     steps.add('✨ Kết quả: $finalDesc ➡️ Đáp án đúng là $expectedAnswer.');
     spokenParts.add('Kết quả chính xác là $expectedAnswer bé nhé!');
 
+    final spokenText = AudioService.normalizeToVietnamese(spokenParts.join(' '));
+
     return FingerMathGuidance(
       steps: steps,
-      spokenText: spokenParts.join(' '),
+      spokenText: spokenText,
       expectedAnswer: expectedAnswer,
     );
   }

@@ -88,7 +88,11 @@ class AudioService {
     result = result.replaceAll('+', ' cộng ');
     result = result.replaceAll('-', ' trừ ');
     result = result.replaceAll('=', ' bằng ');
-    result = result.replaceAll('?', 'bao nhiêu');
+    result = result.replaceAll('?', ' bao nhiêu ');
+    result = result.replaceAll('!', ' ');
+
+    // Chuẩn hóa khoảng trắng trước khi đổi số
+    result = result.replaceAll(RegExp(r'\s+'), ' ').trim();
 
     // Chuyển các số độc lập trong chuỗi sang chữ tiếng Việt
     result = result.replaceAllMapped(RegExp(r'\b\d+\b'), (match) {
@@ -99,7 +103,7 @@ class AudioService {
       return match.group(0)!;
     });
 
-    return result;
+    return result.replaceAll(RegExp(r'\s+'), ' ').trim();
   }
 
   /// Phát âm văn bản đã được chuẩn hóa 100% tiếng Việt
