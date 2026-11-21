@@ -11,7 +11,7 @@ class SorobanQuestion extends Equatable {
   final ArithmeticOperation? operation;
   final int expectedAnswer;
   final QuestionType type;
-  final int flashSpeedMs; // Dành cho Flash Anzan (500 - 2000 ms)
+  final int flashSpeedMs; // Dành cho Flash Anzan (500 - 1500 ms)
 
   const SorobanQuestion({
     required this.id,

@@ -5,7 +5,8 @@ import 'package:soroban_kids_app/shared/entities/soroban_question.dart';
 /// Difficulty levels implemented by the arithmetic generator.
 enum QuestionLevel {
   basic(1),
-  friendRules(2);
+  friendRules(2),
+  flashAnzan(3);
 
   const QuestionLevel(this.value);
 
@@ -37,6 +38,8 @@ class QuestionGenerator {
     QuestionLevel level, {
     ArithmeticOperation? operation,
     QuestionType? questionType,
+    int flashTermCount = 3,
+    int flashSpeedMs = 1200,
   }) {
     switch (level) {
       case QuestionLevel.basic:
@@ -46,7 +49,59 @@ class QuestionGenerator {
           operation: operation,
           questionType: questionType,
         );
+      case QuestionLevel.flashAnzan:
+        return _generateFlashAnzan(
+          termCount: flashTermCount,
+          flashSpeedMs: flashSpeedMs,
+        );
     }
+  }
+
+  SorobanQuestion _generateFlashAnzan({
+    required int termCount,
+    required int flashSpeedMs,
+  }) {
+    if (termCount < 2) {
+      throw ArgumentError.value(
+        termCount,
+        'flashTermCount',
+        'Flash Anzan requires at least 2 numbers.',
+      );
+    }
+    if (flashSpeedMs < 500 || flashSpeedMs > 1500) {
+      throw ArgumentError.value(
+        flashSpeedMs,
+        'flashSpeedMs',
+        'Flash speed must be between 500 and 1500 milliseconds.',
+      );
+    }
+
+    // The first displayed number starts the running total; later numbers are
+    // signed single-digit additions/subtractions. Keep every intermediate sum
+    // in the supported 0-99 range.
+    final operands = <int>[_random.nextInt(100)];
+    var runningTotal = operands.first;
+
+    while (operands.length < termCount) {
+      final validChanges = <int>[];
+      for (var value = 1; value <= 9; value++) {
+        if (runningTotal + value <= 99) validChanges.add(value);
+        if (runningTotal - value >= 0) validChanges.add(-value);
+      }
+
+      final change = validChanges[_random.nextInt(validChanges.length)];
+      operands.add(change);
+      runningTotal += change;
+    }
+
+    return SorobanQuestion(
+      id: 'level3_flash_anzan_${DateTime.now().microsecondsSinceEpoch}',
+      level: QuestionLevel.flashAnzan.value,
+      operands: operands,
+      expectedAnswer: runningTotal,
+      type: QuestionType.flashAnzan,
+      flashSpeedMs: flashSpeedMs,
+    );
   }
 
   SorobanQuestion _generateFriendRules({
