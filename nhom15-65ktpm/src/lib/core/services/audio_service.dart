@@ -8,7 +8,7 @@ class AudioService {
   final FlutterTts _flutterTts = FlutterTts();
   final AudioPlayer _successPlayer = AudioPlayer();
   final AudioPlayer _incorrectPlayer = AudioPlayer();
-  final AudioPlayer _sessionEndPlayer = AudioPlayer();
+  int _feedbackGeneration = 0;
   bool _isTtsInitialized = false;
   Future<void>? _initialization;
 
@@ -148,9 +148,12 @@ class AudioService {
   }
 
   Future<void> _playSoundEffect(AudioPlayer player, String assetPath) async {
+    final generation = ++_feedbackGeneration;
     try {
       await player.setAsset(assetPath);
+      if (generation != _feedbackGeneration) return;
       await player.seek(Duration.zero);
+      if (generation != _feedbackGeneration) return;
       await player.play();
     } catch (_) {}
   }
@@ -175,13 +178,13 @@ class AudioService {
     await HapticFeedback.selectionClick();
   }
 
-  Future<void> playSessionEndSound() async {
-    unawaited(
-      _playSoundEffect(
-        _sessionEndPlayer,
-        'assets/audio/sfx/mixkit-musical-game-over-959.wav',
-      ),
-    );
+  Future<void> stopFeedback() async {
+    _feedbackGeneration++;
+    await Future.wait<void>([
+      _successPlayer.stop(),
+      _incorrectPlayer.stop(),
+    ]);
+    await _flutterTts.stop();
   }
 
   /// Lời khen ngợi sinh động khi bé làm chính xác
