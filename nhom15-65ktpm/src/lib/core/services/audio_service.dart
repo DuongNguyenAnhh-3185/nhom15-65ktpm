@@ -1,9 +1,14 @@
+import 'dart:async';
 import 'dart:math';
 import 'package:flutter/services.dart';
 import 'package:flutter_tts/flutter_tts.dart';
+import 'package:just_audio/just_audio.dart';
 
 class AudioService {
   final FlutterTts _flutterTts = FlutterTts();
+  final AudioPlayer _successPlayer = AudioPlayer();
+  final AudioPlayer _incorrectPlayer = AudioPlayer();
+  final AudioPlayer _sessionEndPlayer = AudioPlayer();
   bool _isTtsInitialized = false;
   Future<void>? _initialization;
 
@@ -22,7 +27,8 @@ class AudioService {
   Future<void> _configureTts() async {
     try {
       await _flutterTts.setLanguage('vi-VN');
-      await _flutterTts.setSpeechRate(0.42); // Tốc độ thong thả, rõ từng từ cho trẻ 4-6 tuổi
+      await _flutterTts
+          .setSpeechRate(0.42); // Tốc độ thong thả, rõ từng từ cho trẻ 4-6 tuổi
       await _flutterTts.setVolume(1.0);
       await _flutterTts.setPitch(1.15); // Âm điệu thân thiện, ấm áp
 
@@ -48,9 +54,8 @@ class AudioService {
           for (final voice in voices) {
             if (voice is Map) {
               final locale = (voice['locale'] ?? '').toString();
-              final normalizedLocale = locale
-                  .replaceAll('_', '-')
-                  .toLowerCase();
+              final normalizedLocale =
+                  locale.replaceAll('_', '-').toLowerCase();
               if (normalizedLocale == 'vi' ||
                   normalizedLocale.startsWith('vi-')) {
                 return {'name': voice['name'].toString(), 'locale': locale};
@@ -142,6 +147,43 @@ class AudioService {
     await HapticFeedback.lightImpact();
   }
 
+  Future<void> _playSoundEffect(AudioPlayer player, String assetPath) async {
+    try {
+      await player.setAsset(assetPath);
+      await player.seek(Duration.zero);
+      await player.play();
+    } catch (_) {}
+  }
+
+  Future<void> playCorrectAnswerSound() async {
+    unawaited(
+      _playSoundEffect(
+        _successPlayer,
+        'assets/audio/sfx/mixkit-end-of-show-clapping-crowd-477.wav',
+      ),
+    );
+    await HapticFeedback.mediumImpact();
+  }
+
+  Future<void> playIncorrectAnswerSound() async {
+    unawaited(
+      _playSoundEffect(
+        _incorrectPlayer,
+        'assets/audio/sfx/mixkit-cartoon-failure-piano-473.wav',
+      ),
+    );
+    await HapticFeedback.selectionClick();
+  }
+
+  Future<void> playSessionEndSound() async {
+    unawaited(
+      _playSoundEffect(
+        _sessionEndPlayer,
+        'assets/audio/sfx/mixkit-musical-game-over-959.wav',
+      ),
+    );
+  }
+
   /// Lời khen ngợi sinh động khi bé làm chính xác
   Future<void> playSuccessFeedback([String? customPraise]) async {
     await HapticFeedback.mediumImpact();
@@ -161,7 +203,8 @@ class AudioService {
     if (explanation != null && explanation.trim().isNotEmpty) {
       await speak('Bé đừng buồn nhé! Cùng nghe hướng dẫn nào: $explanation');
     } else {
-      await speak('Bé đừng buồn nhé! Cùng xem hướng dẫn để làm lại cho đúng nào!');
+      await speak(
+          'Bé đừng buồn nhé! Cùng xem hướng dẫn để làm lại cho đúng nào!');
     }
   }
 }

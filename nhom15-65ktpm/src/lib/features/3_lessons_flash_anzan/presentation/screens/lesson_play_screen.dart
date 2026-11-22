@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:soroban_kids_app/core/constants/app_colors.dart';
 import 'package:soroban_kids_app/core/services/audio_service.dart';
@@ -23,11 +26,13 @@ class LessonPlayScreen extends StatefulWidget {
   State<LessonPlayScreen> createState() => _LessonPlayScreenState();
 }
 
-class _LessonPlayScreenState extends State<LessonPlayScreen> {
+class _LessonPlayScreenState extends State<LessonPlayScreen>
+    with SingleTickerProviderStateMixin {
   final StorageService _storageService = sl<StorageService>();
   final AudioService _audioService = sl<AudioService>();
   final QuestionGenerator _generator = QuestionGenerator();
   late final FingerMathController _fingerController;
+  late final AnimationController _confettiController;
   late SorobanQuestion _question;
   DateTime _questionStartTime = DateTime.now();
 
@@ -38,16 +43,22 @@ class _LessonPlayScreenState extends State<LessonPlayScreen> {
   bool _answeredCorrectly = false;
   int _questionNumber = 1;
   String _adaptiveFeedbackMessage = '';
+  final List<_QuestionSessionResult> _sessionResults = [];
 
   @override
   void initState() {
     super.initState();
+    _confettiController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1700),
+    );
     _fingerController = FingerMathController(showLeftHand: _isLevel2);
     _loadQuestion(isFirstQuestion: true);
   }
 
   @override
   void dispose() {
+    _confettiController.dispose();
     _fingerController.dispose();
     super.dispose();
   }
@@ -58,6 +69,7 @@ class _LessonPlayScreenState extends State<LessonPlayScreen> {
     );
     _fingerController.setValue(_question.operands.first);
     _showHint = false;
+    _confettiController.reset();
     _hasCheckedAnswer = false;
     _answeredCorrectly = false;
     _adaptiveFeedbackMessage = '';
@@ -70,17 +82,20 @@ class _LessonPlayScreenState extends State<LessonPlayScreen> {
 
     final ans = voiceAnswer ?? _fingerController.totalValue;
     final isCorrect = ans == _question.expectedAnswer;
-    final responseTime = DateTime.now().difference(_questionStartTime).inMilliseconds;
+    final responseTime =
+        DateTime.now().difference(_questionStartTime).inMilliseconds;
 
     setState(() {
       _hasCheckedAnswer = true;
       _answeredCorrectly = isCorrect;
+      _recordAnswer(ans, isCorrect);
     });
 
     if (isCorrect) {
-      _audioService.playSuccessFeedback();
+      _confettiController.forward(from: 0);
+      unawaited(_audioService.playCorrectAnswerSound());
     } else {
-      _audioService.playEncouragementFeedback();
+      unawaited(_audioService.playIncorrectAnswerSound());
     }
 
     // 1. Lưu bản ghi AttemptLog
@@ -125,6 +140,119 @@ class _LessonPlayScreenState extends State<LessonPlayScreen> {
     }
   }
 
+  void _recordAnswer(int answer, bool isCorrect) {
+    final existing = _sessionResults.where(
+      (result) => result.number == _questionNumber,
+    );
+    if (existing.isNotEmpty) {
+      final result = existing.first;
+      result.answer = answer;
+      result.isCorrect = isCorrect;
+      result.skipped = false;
+      return;
+    }
+
+    _sessionResults.add(
+      _QuestionSessionResult(
+        number: _questionNumber,
+        expression: _question.formulaExpression,
+        answer: answer,
+        expectedAnswer: _question.expectedAnswer,
+        isCorrect: isCorrect,
+      ),
+    );
+  }
+
+  void _skipQuestion() {
+    final existing = _sessionResults.where(
+      (result) => result.number == _questionNumber,
+    );
+    if (existing.isEmpty) {
+      _sessionResults.add(
+        _QuestionSessionResult(
+          number: _questionNumber,
+          expression: _question.formulaExpression,
+          expectedAnswer: _question.expectedAnswer,
+          skipped: true,
+        ),
+      );
+    } else {
+      existing.first.skipped = true;
+    }
+    setState(_loadQuestion);
+  }
+
+  Future<void> _showSessionSummary() async {
+    unawaited(_audioService.playSessionEndSound());
+    final results = List<_QuestionSessionResult>.unmodifiable(_sessionResults);
+    final correct = results.where((result) => result.isCorrect == true).length;
+    final wrong = results
+        .where((result) => result.isCorrect == false && !result.skipped)
+        .length;
+    final skipped = results.where((result) => result.skipped).length;
+
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Kết quả lượt chơi'),
+        content: SizedBox(
+          width: 420,
+          height: results.isEmpty ? 72 : 360,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Đúng: $correct    Sai: $wrong    Bỏ qua: $skipped'),
+              const SizedBox(height: 12),
+              if (results.isEmpty)
+                const Text('Bé chưa hoàn thành câu nào trong lượt này.')
+              else
+                Expanded(
+                  child: ListView.separated(
+                    itemCount: results.length,
+                    separatorBuilder: (_, __) => const Divider(height: 1),
+                    itemBuilder: (context, index) {
+                      final result = results[index];
+                      final status = result.skipped
+                          ? 'Đã bỏ qua'
+                          : result.isCorrect == true
+                              ? 'Đúng'
+                              : 'Sai: ${result.answer} (đáp án ${result.expectedAnswer})';
+                      final color = result.isCorrect == true
+                          ? AppColors.success
+                          : result.skipped
+                              ? AppColors.textLight
+                              : AppColors.error;
+                      return ListTile(
+                        dense: true,
+                        contentPadding: EdgeInsets.zero,
+                        title: Text(
+                          'Câu ${result.number}: ${result.expression} = ${result.expectedAnswer}',
+                        ),
+                        subtitle: Text(status, style: TextStyle(color: color)),
+                      );
+                    },
+                  ),
+                ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('CHƠI TIẾP'),
+          ),
+          FilledButton(
+            onPressed: () {
+              Navigator.of(dialogContext).pop();
+              if (mounted) Navigator.of(context).pop();
+            },
+            child: const Text('KẾT THÚC'),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _tryAgain() {
     setState(() {
       _fingerController.setValue(_question.operands.first);
@@ -151,193 +279,245 @@ class _LessonPlayScreenState extends State<LessonPlayScreen> {
               : 'Cấp độ 1 · Bé cùng tính nhé!',
         ),
         backgroundColor: AppColors.cardBg,
+        actions: [
+          TextButton.icon(
+            onPressed: _showSessionSummary,
+            icon: const Icon(Icons.flag_rounded, size: 18),
+            label: const Text('KẾT THÚC'),
+            style: TextButton.styleFrom(
+              foregroundColor: AppColors.primary,
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+            ),
+          ),
+        ],
       ),
-      body: SafeArea(
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final handBoardHeight =
-                (constraints.maxHeight * 0.35).clamp(160.0, 240.0).toDouble();
+      body: Stack(
+        children: [
+          SafeArea(
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final handBoardHeight = (constraints.maxHeight * 0.35)
+                    .clamp(160.0, 240.0)
+                    .toDouble();
 
-            return SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              child: Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 700),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 20),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 6,
+                return SingleChildScrollView(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 700),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 20),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 6,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.primary
+                                        .withValues(alpha: 0.15),
+                                    borderRadius: BorderRadius.circular(16),
+                                  ),
+                                  child: Text(
+                                    'Câu số $_questionNumber',
+                                    style: const TextStyle(
+                                      color: AppColors.primary,
+                                      fontWeight: FontWeight.w800,
+                                    ),
+                                  ),
+                                ),
+                                Text(
+                                  _isLevel2 ? 'Khó hơn' : 'Cơ bản',
+                                  style: const TextStyle(
+                                    color: AppColors.textLight,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const Padding(
+                            padding: EdgeInsets.symmetric(
+                                horizontal: 20, vertical: 6),
+                            child: Text(
+                              'Bé hãy gảy ngón tay hoặc bấm Micro để nói đáp án nhé!',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                color: AppColors.textDark,
+                                fontSize: 17,
+                                fontWeight: FontWeight.w800,
                               ),
-                              decoration: BoxDecoration(
-                                color: AppColors.primary.withValues(alpha: 0.15),
-                                borderRadius: BorderRadius.circular(16),
+                            ),
+                          ),
+                          Container(
+                            margin: const EdgeInsets.symmetric(
+                                horizontal: 20, vertical: 6),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 28, vertical: 12),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(24),
+                              border: Border.all(
+                                  color: AppColors.secondary, width: 2),
+                            ),
+                            child: Text(
+                              '${_question.formulaExpression} = ?',
+                              style: const TextStyle(
+                                color: AppColors.primary,
+                                fontSize: 36,
+                                fontWeight: FontWeight.w900,
                               ),
+                            ),
+                          ),
+                          if (_isLevel2)
+                            Padding(
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 20),
+                              child: _buildHintSection(secondOperand),
+                            ),
+                          if (!_isLevel2)
+                            Padding(
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 24),
                               child: Text(
-                                'Câu số $_questionNumber',
+                                isAddition
+                                    ? 'Bắt đầu từ $firstOperand rồi xòe thêm $secondOperand nhé.'
+                                    : 'Bắt đầu từ $firstOperand rồi gập bớt $secondOperand nhé.',
+                                textAlign: TextAlign.center,
+                                style:
+                                    const TextStyle(color: AppColors.textLight),
+                              ),
+                            ),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 12),
+                            child: FingerMathBoardWidget(
+                              controller: _fingerController,
+                              height: handBoardHeight,
+                              showLiveValue: true,
+                            ),
+                          ),
+
+                          // Nút Micro AI nhận diện giọng nói tiếng Việt (Mục 7.7)
+                          Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 6),
+                            child: VoiceAnswerMicButton(
+                              onAnswerDetected: (number, raw) {
+                                _fingerController.setValue(number);
+                                _checkAnswer(
+                                    voiceAnswer: number, rawSpeech: raw);
+                              },
+                              onHintRequested: (speech) {
+                                setState(() => _showHint = true);
+                                _audioService.speak(
+                                  'Đừng lo bé nhé! ${_question.formulaExpression}. Bé hãy quan sát ngón tay nè!',
+                                );
+                              },
+                              onStatusChanged: (status) {
+                                // Cập nhật trạng thái nếu cần
+                              },
+                            ),
+                          ),
+
+                          if (_adaptiveFeedbackMessage.isNotEmpty)
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 20, vertical: 4),
+                              child: Text(
+                                _adaptiveFeedbackMessage,
+                                textAlign: TextAlign.center,
                                 style: const TextStyle(
                                   color: AppColors.primary,
-                                  fontWeight: FontWeight.w800,
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 13,
                                 ),
                               ),
                             ),
-                            Text(
-                              _isLevel2 ? 'Khó hơn' : 'Cơ bản',
-                              style: const TextStyle(
-                                color: AppColors.textLight,
-                                fontWeight: FontWeight.w700,
+
+                          if (_hasCheckedAnswer)
+                            Padding(
+                              padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+                              child: _buildAnswerFeedback(
+                                firstOperand: firstOperand,
+                                secondOperand: secondOperand,
+                                isAddition: isAddition,
                               ),
                             ),
-                          ],
-                        ),
-                      ),
-                      const Padding(
-                        padding:
-                            EdgeInsets.symmetric(horizontal: 20, vertical: 6),
-                        child: Text(
-                          'Bé hãy gảy ngón tay hoặc bấm Micro để nói đáp án nhé!',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            color: AppColors.textDark,
-                            fontSize: 17,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                      ),
-                      Container(
-                        margin: const EdgeInsets.symmetric(
-                            horizontal: 20, vertical: 6),
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 28, vertical: 12),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(24),
-                          border:
-                              Border.all(color: AppColors.secondary, width: 2),
-                        ),
-                        child: Text(
-                          '${_question.formulaExpression} = ?',
-                          style: const TextStyle(
-                            color: AppColors.primary,
-                            fontSize: 36,
-                            fontWeight: FontWeight.w900,
-                          ),
-                        ),
-                      ),
-                      if (_isLevel2)
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 20),
-                          child: _buildHintSection(secondOperand),
-                        ),
-                      if (!_isLevel2)
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 24),
-                          child: Text(
-                            isAddition
-                                ? 'Bắt đầu từ $firstOperand rồi xòe thêm $secondOperand nhé.'
-                                : 'Bắt đầu từ $firstOperand rồi gập bớt $secondOperand nhé.',
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(color: AppColors.textLight),
-                          ),
-                        ),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 12),
-                        child: FingerMathBoardWidget(
-                          controller: _fingerController,
-                          height: handBoardHeight,
-                          showLiveValue: true,
-                        ),
-                      ),
-
-                      // Nút Micro AI nhận diện giọng nói tiếng Việt (Mục 7.7)
-                      Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 6),
-                        child: VoiceAnswerMicButton(
-                          onAnswerDetected: (number, raw) {
-                            _fingerController.setValue(number);
-                            _checkAnswer(voiceAnswer: number, rawSpeech: raw);
-                          },
-                          onHintRequested: (speech) {
-                            setState(() => _showHint = true);
-                            _audioService.speak(
-                              'Đừng lo bé nhé! ${_question.formulaExpression}. Bé hãy quan sát ngón tay nè!',
-                            );
-                          },
-                          onStatusChanged: (status) {
-                            // Cập nhật trạng thái nếu cần
-                          },
-                        ),
-                      ),
-
-                      if (_adaptiveFeedbackMessage.isNotEmpty)
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-                          child: Text(
-                            _adaptiveFeedbackMessage,
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(
-                              color: AppColors.primary,
-                              fontWeight: FontWeight.w700,
-                              fontSize: 13,
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(16, 4, 16, 20),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: FilledButton.icon(
+                                    onPressed: _answeredCorrectly
+                                        ? _nextQuestion
+                                        : !_hasCheckedAnswer
+                                            ? () => _checkAnswer()
+                                            : _tryAgain,
+                                    icon: Icon(
+                                      _answeredCorrectly
+                                          ? Icons.arrow_forward_rounded
+                                          : !_hasCheckedAnswer
+                                              ? Icons.check_rounded
+                                              : Icons.refresh_rounded,
+                                    ),
+                                    label: Text(
+                                      _answeredCorrectly
+                                          ? 'CÂU TIẾP THEO'
+                                          : !_hasCheckedAnswer
+                                              ? 'KIỂM TRA BÀN TAY'
+                                              : 'THỬ LẠI',
+                                    ),
+                                    style: FilledButton.styleFrom(
+                                      backgroundColor: AppColors.secondary,
+                                      foregroundColor: Colors.white,
+                                      padding: const EdgeInsets.symmetric(
+                                          vertical: 17),
+                                    ),
+                                  ),
+                                ),
+                                if (!_answeredCorrectly) ...[
+                                  const SizedBox(width: 10),
+                                  OutlinedButton.icon(
+                                    onPressed: _skipQuestion,
+                                    icon: const Icon(Icons.skip_next_rounded),
+                                    label: const Text('BỎ QUA'),
+                                    style: OutlinedButton.styleFrom(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 14,
+                                        vertical: 16,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ],
                             ),
                           ),
-                        ),
-
-                      if (_hasCheckedAnswer)
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
-                          child: _buildAnswerFeedback(
-                            firstOperand: firstOperand,
-                            secondOperand: secondOperand,
-                            isAddition: isAddition,
-                          ),
-                        ),
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
-                        child: SizedBox(
-                          width: double.infinity,
-                          child: FilledButton.icon(
-                            onPressed: _answeredCorrectly
-                                ? _nextQuestion
-                                : !_hasCheckedAnswer
-                                    ? () => _checkAnswer()
-                                    : _tryAgain,
-                            icon: Icon(
-                              _answeredCorrectly
-                                  ? Icons.arrow_forward_rounded
-                                  : !_hasCheckedAnswer
-                                      ? Icons.check_rounded
-                                      : Icons.refresh_rounded,
-                            ),
-                            label: Text(
-                              _answeredCorrectly
-                                  ? 'CÂU TIẾP THEO'
-                                  : !_hasCheckedAnswer
-                                      ? 'KIỂM TRA BÀN TAY'
-                                      : 'THỬ LẠI',
-                            ),
-                            style: FilledButton.styleFrom(
-                              backgroundColor: AppColors.secondary,
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(vertical: 17),
-                            ),
-                          ),
-                        ),
+                        ],
                       ),
-                    ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+          Positioned.fill(
+            child: IgnorePointer(
+              child: AnimatedBuilder(
+                animation: _confettiController,
+                builder: (context, _) => CustomPaint(
+                  painter: _ConfettiPainter(
+                    progress: _confettiController.value,
                   ),
                 ),
               ),
-            );
-          },
-        ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -493,4 +673,79 @@ class _LessonPlayScreenState extends State<LessonPlayScreen> {
       ),
     );
   }
+}
+
+class _QuestionSessionResult {
+  _QuestionSessionResult({
+    required this.number,
+    required this.expression,
+    required this.expectedAnswer,
+    this.answer,
+    this.isCorrect,
+    this.skipped = false,
+  });
+
+  final int number;
+  final String expression;
+  final int expectedAnswer;
+  int? answer;
+  bool? isCorrect;
+  bool skipped;
+}
+
+class _ConfettiPainter extends CustomPainter {
+  const _ConfettiPainter({required this.progress});
+
+  final double progress;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (progress <= 0 || progress >= 1) return;
+
+    final random = math.Random(1506);
+    const colors = [
+      Color(0xFFFF6B6B),
+      Color(0xFF4ECDC4),
+      Color(0xFFFFD166),
+      Color(0xFF9D4EDD),
+      Color(0xFFFF9F1C),
+    ];
+    final opacity = ((1 - progress) * 1.6).clamp(0.0, 1.0).toDouble();
+
+    for (var i = 0; i < 56; i++) {
+      final startX = random.nextDouble() * size.width;
+      final startY = -20 - random.nextDouble() * 130;
+      final speed = 0.65 + random.nextDouble() * 0.65;
+      final phase = random.nextDouble() * math.pi * 2;
+      final y = startY + progress * (size.height + 170) * speed;
+      if (y < -20 || y > size.height + 24) continue;
+
+      final x = startX + math.sin(progress * 8 + phase) * 20;
+      final width = 5 + random.nextDouble() * 5;
+      final height = 8 + random.nextDouble() * 7;
+      final paint = Paint()
+        ..color = colors[i % colors.length].withValues(alpha: opacity);
+
+      canvas
+        ..save()
+        ..translate(x, y)
+        ..rotate(progress * 8 + phase)
+        ..drawRRect(
+          RRect.fromRectAndRadius(
+            Rect.fromCenter(
+              center: Offset.zero,
+              width: width,
+              height: height,
+            ),
+            const Radius.circular(2),
+          ),
+          paint,
+        )
+        ..restore();
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _ConfettiPainter oldDelegate) =>
+      oldDelegate.progress != progress;
 }
