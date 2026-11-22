@@ -93,8 +93,8 @@ class _LessonPlayScreenState extends State<LessonPlayScreen>
     });
 
     if (isCorrect) {
-      _confettiController.forward(from: 0);
-      unawaited(_audioService.playCorrectAnswerSound());
+      final soundStarted = await _audioService.playCorrectAnswerSound();
+      if (soundStarted && mounted) _confettiController.forward(from: 0);
     } else {
       unawaited(_audioService.playIncorrectAnswerSound());
     }
@@ -440,7 +440,8 @@ class _LessonPlayScreenState extends State<LessonPlayScreen>
                               ),
                             ),
 
-                            if (_adaptiveFeedbackMessage.isNotEmpty)
+                            if (_adaptiveFeedbackMessage.isNotEmpty &&
+                                !_answeredCorrectly)
                               Padding(
                                 padding: const EdgeInsets.symmetric(
                                     horizontal: 20, vertical: 4),
@@ -585,20 +586,45 @@ class _LessonPlayScreenState extends State<LessonPlayScreen>
             margin: const EdgeInsets.only(top: 10, bottom: 8),
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              color: const Color(0xFFFFF2DC),
+              color: const Color(0xFFFFF3B0),
               borderRadius: BorderRadius.circular(20),
               border: Border.all(
-                color: const Color(0xFFF09838),
+                color: const Color(0xFFFFC107),
                 width: 2,
               ),
             ),
             child: Column(
               children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Container(
+                      width: 48,
+                      height: 48,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFD8EFF5),
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: const Text('🐼', style: TextStyle(fontSize: 32)),
+                    ),
+                    const SizedBox(width: 10),
+                    const Text(
+                      'Panda hướng dẫn bé',
+                      style: TextStyle(
+                        color: Color(0xFF8A4B08),
+                        fontSize: 17,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
                 Text(
                   instruction,
                   textAlign: TextAlign.center,
                   style: const TextStyle(
-                    color: Color(0xFF9E4517),
+                    color: Color(0xFF8A4B08),
                     fontSize: 17,
                     fontWeight: FontWeight.w700,
                   ),
@@ -608,17 +634,17 @@ class _LessonPlayScreenState extends State<LessonPlayScreen>
                   rule,
                   textAlign: TextAlign.center,
                   style: const TextStyle(
-                    color: Color(0xFF9E4517),
+                    color: Color(0xFF8A4B08),
                     fontSize: 22,
                     fontWeight: FontWeight.w900,
                   ),
                 ),
                 const SizedBox(height: 6),
                 const Text(
-                  'Hãy quan sát bàn tay để thực hiện theo hướng dẫn nhé!',
+                  'Hãy cùng thử lại nhé!',
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                    color: Color(0xFF9E4517),
+                    color: Color(0xFF8A4B08),
                     fontSize: 14,
                     fontWeight: FontWeight.w500,
                   ),

@@ -8,12 +8,14 @@ class AudioService {
   final FlutterTts _flutterTts = FlutterTts();
   final AudioPlayer _successPlayer = AudioPlayer();
   final AudioPlayer _incorrectPlayer = AudioPlayer();
+  late final Future<void> _feedbackAssetsReady;
   int _feedbackGeneration = 0;
   bool _isTtsInitialized = false;
   Future<void>? _initialization;
 
   AudioService() {
     _initTts();
+    _feedbackAssetsReady = _prepareFeedbackAssets();
   }
 
   Future<void> _initTts() {
@@ -147,35 +149,47 @@ class AudioService {
     await HapticFeedback.lightImpact();
   }
 
-  Future<void> _playSoundEffect(AudioPlayer player, String assetPath) async {
-    final generation = ++_feedbackGeneration;
-    try {
-      await player.setAsset(assetPath);
-      if (generation != _feedbackGeneration) return;
-      await player.seek(Duration.zero);
-      if (generation != _feedbackGeneration) return;
-      await player.play();
-    } catch (_) {}
-  }
-
-  Future<void> playCorrectAnswerSound() async {
-    unawaited(
-      _playSoundEffect(
+  Future<void> _prepareFeedbackAssets() async {
+    await Future.wait<void>([
+      _loadSoundAsset(
         _successPlayer,
         'assets/audio/sfx/mixkit-end-of-show-clapping-crowd-477.wav',
       ),
-    );
-    await HapticFeedback.mediumImpact();
-  }
-
-  Future<void> playIncorrectAnswerSound() async {
-    unawaited(
-      _playSoundEffect(
+      _loadSoundAsset(
         _incorrectPlayer,
         'assets/audio/sfx/mixkit-cartoon-failure-piano-473.wav',
       ),
-    );
-    await HapticFeedback.selectionClick();
+    ]);
+  }
+
+  Future<void> _loadSoundAsset(AudioPlayer player, String assetPath) async {
+    try {
+      await player.setAsset(assetPath);
+    } catch (_) {}
+  }
+
+  Future<bool> _playSoundEffect(AudioPlayer player) async {
+    final generation = ++_feedbackGeneration;
+    try {
+      await _feedbackAssetsReady;
+      if (generation != _feedbackGeneration) return false;
+      await player.seek(Duration.zero);
+      if (generation != _feedbackGeneration) return false;
+      unawaited(player.play());
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<bool> playCorrectAnswerSound() async {
+    unawaited(HapticFeedback.mediumImpact());
+    return _playSoundEffect(_successPlayer);
+  }
+
+  Future<void> playIncorrectAnswerSound() async {
+    unawaited(HapticFeedback.selectionClick());
+    await _playSoundEffect(_incorrectPlayer);
   }
 
   Future<void> stopFeedback() async {
