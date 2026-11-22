@@ -148,19 +148,31 @@ class _HomeScreenState extends State<HomeScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Semantics(
-                    label: 'Chuỗi ngày học, ${_profile?.streakCount ?? 1} ngày',
-                    child: Container(
-                      width: 56,
-                      height: 56,
-                      decoration: BoxDecoration(
-                        color: AppColors.accentYellow,
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: AppColors.primary, width: 2),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppColors.accentOrange.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: AppColors.accentOrange.withValues(alpha: 0.4),
                       ),
-                      child: const Center(
-                        child: Text('🔥', style: TextStyle(fontSize: 28)),
-                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        const Text('🔥', style: TextStyle(fontSize: 20)),
+                        const SizedBox(width: 6),
+                        Text(
+                          '${_profile?.streakCount ?? 3} Ngày',
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.accentOrange,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
 
@@ -201,12 +213,12 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ],
               ),
-              const SizedBox(height: 12),
-
-              // Banner nhắc nhở học cố định 19:00 (nếu đến giờ mà chưa luyện tập hôm nay)
-              if (_showReminderBanner) _buildReminderBanner(),
-
-              const SizedBox(height: 12),
+              if (_showReminderBanner) ...[
+                const SizedBox(height: 12),
+                _buildReminderBanner(),
+                const SizedBox(height: 12),
+              ] else
+                const SizedBox(height: 16),
 
               // Linh vật hoạt hình Mascot
               MascotBubbleWidget(
@@ -275,17 +287,22 @@ class _HomeScreenState extends State<HomeScreen> {
               const SizedBox(height: 20),
 
               // Nút Bàn tay Finger Math tự do
-              OutlinedButton(
+              OutlinedButton.icon(
                 onPressed: _openFreePlayModal,
+                icon: const Icon(Icons.front_hand, size: 26),
+                label: const Text('BÀN TAY FINGER MATH (CHƠI TỰ DO) ✋'),
                 style: OutlinedButton.styleFrom(
-                  foregroundColor: AppColors.primary,
+                  foregroundColor: AppColors.textDark,
                   side: const BorderSide(color: AppColors.primary, width: 2),
-                  minimumSize: const Size(48, 64),
+                  padding: const EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(20),
                   ),
+                  textStyle: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
-                child: const Text('✋', style: TextStyle(fontSize: 34)),
               ),
             ],
           ),
@@ -301,7 +318,8 @@ class _HomeScreenState extends State<HomeScreen> {
       decoration: BoxDecoration(
         color: AppColors.accentOrange.withValues(alpha: 0.14),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.accentOrange.withValues(alpha: 0.5)),
+        border:
+            Border.all(color: AppColors.accentOrange.withValues(alpha: 0.5)),
       ),
       child: Row(
         children: [
@@ -367,21 +385,13 @@ class _HomeScreenState extends State<HomeScreen> {
     return Semantics(
       label: '$title. $subtitle. $badgeText',
       button: true,
-      child: InkWell(
+      child: GestureDetector(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(28),
         child: Container(
-          constraints: const BoxConstraints(minHeight: 104),
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
             color: color,
             borderRadius: BorderRadius.circular(28),
-            border: Border.all(
-              color: badgeText == 'Công Thức'
-                  ? AppColors.accentYellow
-                  : Colors.white,
-              width: 3,
-            ),
             boxShadow: [
               BoxShadow(
                 color: color.withValues(alpha: 0.35),
@@ -390,18 +400,73 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ],
           ),
-          child: Center(
-            child: Container(
-              width: 72,
-              height: 72,
-              decoration: const BoxDecoration(
+          child: Row(
+            children: [
+              Container(
+                width: 68,
+                height: 68,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.25),
+                  shape: BoxShape.circle,
+                ),
+                child: Center(
+                  child: Text(emoji, style: const TextStyle(fontSize: 34)),
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            badgeText,
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w800,
+                              color: color,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w900,
+                        color: Colors.white,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Colors.white.withValues(alpha: 0.9),
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(
+                Icons.arrow_forward_ios_rounded,
                 color: Colors.white,
-                shape: BoxShape.circle,
+                size: 20,
               ),
-              child: Center(
-                child: Text(emoji, style: const TextStyle(fontSize: 42)),
-              ),
-            ),
+            ],
           ),
         ),
       ),
