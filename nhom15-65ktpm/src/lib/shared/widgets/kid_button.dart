@@ -1,79 +1,134 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_dimensions.dart';
 
 class KidButton extends StatefulWidget {
   final VoidCallback onPressed;
-  final String label;
+  final String? label;
+  final String? semanticLabel;
   final IconData? icon;
   final Color backgroundColor;
-  final Color textColor;
+  final Color? textColor;
   final double? width;
   final double height;
+  final bool isSelected;
 
   const KidButton({
     super.key,
     required this.onPressed,
-    required this.label,
+    this.label,
+    this.semanticLabel,
     this.icon,
     this.backgroundColor = AppColors.primary,
-    this.textColor = Colors.white,
+    this.textColor,
     this.width,
     this.height = AppDimensions.buttonHeight,
-  });
+    this.isSelected = false,
+  })  : assert(label != null || icon != null),
+        assert(label != null || semanticLabel != null);
 
   @override
   State<KidButton> createState() => _KidButtonState();
 }
 
-class _KidButtonState extends State<KidButton>
-    with SingleTickerProviderStateMixin {
+class _KidButtonState extends State<KidButton> {
   double _scale = 1.0;
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTapDown: (_) => setState(() => _scale = 0.94),
-      onTapUp: (_) {
-        setState(() => _scale = 1.0);
-        widget.onPressed();
-      },
-      onTapCancel: () => setState(() => _scale = 1.0),
-      child: AnimatedScale(
-        scale: _scale,
-        duration: const Duration(milliseconds: 100),
-        child: Container(
-          width: widget.width,
-          height: widget.height,
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          decoration: BoxDecoration(
-            color: widget.backgroundColor,
-            borderRadius: BorderRadius.circular(AppDimensions.radiusMedium),
-            boxShadow: [
-              BoxShadow(
-                color: widget.backgroundColor.withValues(alpha: 0.4),
-                blurRadius: 10,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              if (widget.icon != null) ...[
-                Icon(widget.icon, color: widget.textColor, size: 28),
-                const SizedBox(width: 8),
-              ],
-              Text(
-                widget.label,
-                style: TextStyle(
-                  color: widget.textColor,
-                  fontSize: 20,
-                  fontWeight: FontWeight.w800,
+    final borderRadius = BorderRadius.circular(AppDimensions.radiusMedium);
+    final height = widget.height < AppDimensions.minTouchSize
+        ? AppDimensions.minTouchSize
+        : widget.height;
+    final width = widget.width == null
+        ? null
+        : widget.width! < AppDimensions.minTouchSize
+            ? AppDimensions.minTouchSize
+            : widget.width;
+    final foregroundColor = widget.textColor ??
+        (widget.backgroundColor.computeLuminance() > 0.179
+            ? Colors.black
+            : Colors.white);
+    final horizontalPadding = widget.label == null ? 0.0 : 20.0;
+
+    return Semantics(
+      label: widget.semanticLabel ?? widget.label,
+      button: true,
+      selected: widget.isSelected,
+      onTap: widget.onPressed,
+      child: ExcludeSemantics(
+        child: Material(
+          color: widget.backgroundColor,
+          elevation: widget.isSelected ? 5 : 3,
+          borderRadius: borderRadius,
+          child: Container(
+            decoration: BoxDecoration(
+              borderRadius: borderRadius,
+              border: widget.isSelected
+                  ? Border.all(color: Colors.white, width: 2.5)
+                  : null,
+            ),
+            child: InkWell(
+              onTap: () {
+                HapticFeedback.selectionClick();
+                widget.onPressed();
+              },
+              onTapDown: (_) => setState(() => _scale = 0.94),
+              onTapUp: (_) => setState(() => _scale = 1.0),
+              onTapCancel: () => setState(() => _scale = 1.0),
+              borderRadius: borderRadius,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(
+                  minWidth: AppDimensions.minTouchSize,
+                  minHeight: AppDimensions.minTouchSize,
+                ),
+                child: SizedBox(
+                  width: width,
+                  height: height,
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: horizontalPadding,
+                    ),
+                    child: Center(
+                      child: AnimatedScale(
+                        scale: _scale,
+                        duration: const Duration(milliseconds: 100),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (widget.icon != null)
+                              Icon(
+                                widget.icon,
+                                color: foregroundColor,
+                                size: 28,
+                              ),
+                            if (widget.icon != null && widget.label != null)
+                              const SizedBox(width: 8),
+                            if (widget.label != null)
+                              Flexible(
+                                child: Text(
+                                  widget.label!,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .labelLarge
+                                      ?.copyWith(
+                                        color: foregroundColor,
+                                        fontSize: 20,
+                                        fontWeight: FontWeight.w800,
+                                      ),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
                 ),
               ),
-            ],
+            ),
           ),
         ),
       ),

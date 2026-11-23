@@ -7,6 +7,7 @@ import '../../../../injection_container.dart';
 import '../../../../shared/entities/attempt_log.dart';
 import '../../../../shared/entities/badge_item.dart';
 import '../../../../shared/entities/child_profile.dart';
+import '../../../../shared/widgets/kid_badge_card.dart';
 
 class ParentDashboardScreen extends StatefulWidget {
   const ParentDashboardScreen({super.key});
@@ -524,61 +525,9 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
             final badge = BadgeDefinitions.allBadges[index];
             final isUnlocked = unlockedIds.contains(badge.id);
 
-            return Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(18),
-                border: Border.all(
-                  color: isUnlocked
-                      ? AppColors.accentYellow.withValues(alpha: 0.8)
-                      : Colors.grey.shade200,
-                  width: isUnlocked ? 2 : 1,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: isUnlocked
-                        ? AppColors.accentYellow.withValues(alpha: 0.15)
-                        : Colors.transparent,
-                    blurRadius: 8,
-                  ),
-                ],
-              ),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    badge.icon,
-                    style: TextStyle(
-                      fontSize: 32,
-                      color: isUnlocked ? null : Colors.grey.shade400,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    badge.title,
-                    textAlign: TextAlign.center,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                      color: isUnlocked
-                          ? AppColors.textDark
-                          : Colors.grey.shade400,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    isUnlocked ? 'Đã đạt' : 'Chưa mở',
-                    style: TextStyle(
-                      fontSize: 10,
-                      color:
-                          isUnlocked ? AppColors.success : Colors.grey.shade400,
-                    ),
-                  ),
-                ],
-              ),
+            return KidBadgeCard(
+              badge: badge,
+              isUnlocked: isUnlocked,
             );
           },
         ),
