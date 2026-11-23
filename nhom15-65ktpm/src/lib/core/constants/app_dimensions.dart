@@ -9,4 +9,5 @@ class AppDimensions {
 
   static const double buttonHeight = 64.0;
   static const double iconSizeLarge = 48.0;
+  static const double minTouchSize = 48.0;
 }
