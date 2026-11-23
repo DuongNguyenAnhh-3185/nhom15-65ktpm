@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:soroban_kids_app/core/constants/app_colors.dart';
+import 'package:soroban_kids_app/shared/entities/badge_item.dart';
+import 'package:soroban_kids_app/shared/widgets/kid_badge_card.dart';
 import 'package:soroban_kids_app/shared/widgets/kid_button.dart';
 import 'package:soroban_kids_app/shared/widgets/kid_card.dart';
 import 'package:soroban_kids_app/shared/widgets/kid_decoration.dart';
 import 'package:soroban_kids_app/shared/widgets/kid_progress_bar.dart';
+import 'package:soroban_kids_app/shared/widgets/kid_status_banner.dart';
 import 'package:soroban_kids_app/shared/widgets/kid_status_icon.dart';
 
 void main() {
@@ -19,7 +22,7 @@ void main() {
               onPressed: () => tapped = true,
               icon: Icons.back_hand_rounded,
               semanticLabel: 'Tập đếm',
-              width: 48,
+              width: 32,
               height: 32,
             ),
           ),
@@ -30,13 +33,54 @@ void main() {
     final size = tester.getSize(find.byType(KidButton));
     expect(size.width, greaterThanOrEqualTo(48));
     expect(size.height, greaterThanOrEqualTo(48));
+    expect(
+      find.ancestor(
+        of: find.byType(AnimatedScale),
+        matching: find.byType(InkWell),
+      ),
+      findsOneWidget,
+    );
 
     final semantics = tester.ensureSemantics();
     expect(find.bySemanticsLabel('Tập đếm'), findsOneWidget);
-    await tester.tap(find.byType(KidButton));
+    final gesture = await tester.startGesture(
+      tester.getCenter(find.byType(KidButton)),
+    );
+    await tester.pump(const Duration(milliseconds: 50));
+    expect(
+        tester.getSize(find.byType(InkWell)).height, greaterThanOrEqualTo(48));
+    await gesture.up();
     await tester.pumpAndSettle();
     expect(tapped, isTrue);
     semantics.dispose();
+  });
+
+  testWidgets('KidButton selects accessible foregrounds for brand colors',
+      (WidgetTester tester) async {
+    for (final backgroundColor in [
+      AppColors.primary,
+      AppColors.secondary,
+      AppColors.accentPurple,
+    ]) {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Center(
+              child: KidButton(
+                onPressed: () {},
+                icon: Icons.play_arrow_rounded,
+                semanticLabel: 'Bắt đầu',
+                backgroundColor: backgroundColor,
+              ),
+            ),
+          ),
+        ),
+      );
+
+      final icon = tester.widget<Icon>(find.byIcon(Icons.play_arrow_rounded));
+      expect(_contrastRatio(backgroundColor, icon.color!),
+          greaterThanOrEqualTo(4.5));
+    }
   });
 
   testWidgets('KidCard supports a tap and content padding',
@@ -55,6 +99,9 @@ void main() {
     );
 
     expect(find.text('⭐'), findsOneWidget);
+    final size = tester.getSize(find.byType(KidCard));
+    expect(size.width, greaterThanOrEqualTo(48));
+    expect(size.height, greaterThanOrEqualTo(48));
     await tester.tap(find.byType(KidCard));
     await tester.pumpAndSettle();
     expect(tapped, isTrue);
@@ -108,14 +155,13 @@ void main() {
       const MaterialApp(
         home: Scaffold(
           body: KidDecoration(
-            icon: Icons.auto_awesome_rounded,
-            color: AppColors.accentPurple,
+            type: KidDecorationType.flower,
           ),
         ),
       ),
     );
 
-    expect(find.byIcon(Icons.auto_awesome_rounded), findsOneWidget);
+    expect(find.byIcon(Icons.local_florist_rounded), findsOneWidget);
     expect(tester.getSize(find.byType(KidDecoration)), const Size(48, 48));
   });
 
@@ -128,7 +174,11 @@ void main() {
       tester.view.devicePixelRatio = previousDevicePixelRatio;
     });
 
-    for (final size in [const Size(320, 640), const Size(1200, 900)]) {
+    for (final size in [
+      const Size(320, 640),
+      const Size(768, 1024),
+      const Size(1200, 900),
+    ]) {
       tester.view.physicalSize = size;
       tester.view.devicePixelRatio = 1;
       await tester.pumpWidget(
@@ -150,8 +200,24 @@ void main() {
                 ),
                 const KidStatusIcon(status: KidStatusType.info),
                 const KidDecoration(
-                  icon: Icons.star_rounded,
-                  color: AppColors.secondary,
+                  type: KidDecorationType.star,
+                ),
+                const KidBadgeCard(
+                  badge: BadgeItem(
+                    id: 'streak_3_days',
+                    title: 'Chiến Binh',
+                    description: 'Học 3 ngày',
+                    icon: '🔥',
+                    category: 'streak',
+                  ),
+                  isUnlocked: true,
+                ),
+                KidStatusBanner(
+                  status: KidStatusType.warning,
+                  title: 'Nhắc nhở học tập',
+                  subtitle: 'Giờ học 19:00',
+                  actionLabel: 'Học ngay',
+                  onAction: () {},
                 ),
               ],
             ),
@@ -162,4 +228,132 @@ void main() {
       expect(tester.takeException(), isNull);
     }
   });
+
+  testWidgets('KidBadgeCard displays badge icon, title and status correctly',
+      (WidgetTester tester) async {
+    var tapped = false;
+    const testBadge = BadgeItem(
+      id: 'streak_3_days',
+      title: 'Chiến Binh Chăm Chỉ',
+      description: 'Học liên tục 3 ngày',
+      icon: '🔥',
+      category: 'streak',
+    );
+
+    // Test trạng thái đã mở khóa
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Center(
+            child: KidBadgeCard(
+              badge: testBadge,
+              isUnlocked: true,
+              onTap: () => tapped = true,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('🔥'), findsOneWidget);
+    expect(find.text('Chiến Binh Chăm Chỉ'), findsOneWidget);
+    expect(find.text('Đã đạt'), findsOneWidget);
+
+    final cardSize = tester.getSize(find.byType(KidBadgeCard));
+    expect(cardSize.width, greaterThanOrEqualTo(48.0));
+    expect(cardSize.height, greaterThanOrEqualTo(48.0));
+
+    await tester.tap(find.byType(KidBadgeCard));
+    await tester.pumpAndSettle();
+    expect(tapped, isTrue);
+
+    // Test trạng thái chưa mở khóa
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: Center(
+            child: KidBadgeCard(
+              badge: testBadge,
+              isUnlocked: false,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('Chưa mở'), findsOneWidget);
+  });
+
+  testWidgets('KidStatusBanner renders status, title, action and dismisses',
+      (WidgetTester tester) async {
+    var actionTapped = false;
+    var dismissTapped = false;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: KidStatusBanner(
+            status: KidStatusType.warning,
+            iconEmoji: '⏰',
+            title: 'Đã 19:00 rồi!',
+            subtitle: 'Giờ luyện tập Finger Math!',
+            actionLabel: 'Bắt đầu',
+            onAction: () => actionTapped = true,
+            onDismiss: () => dismissTapped = true,
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('⏰'), findsOneWidget);
+    expect(find.text('Đã 19:00 rồi!'), findsOneWidget);
+    expect(find.text('Giờ luyện tập Finger Math!'), findsOneWidget);
+    expect(find.text('Bắt đầu'), findsOneWidget);
+
+    await tester.tap(find.text('Bắt đầu'));
+    await tester.pumpAndSettle();
+    expect(actionTapped, isTrue);
+
+    await tester.tap(find.byIcon(Icons.close_rounded));
+    await tester.pumpAndSettle();
+    expect(dismissTapped, isTrue);
+  });
+
+  testWidgets('KidCard and KidButton support isSelected state',
+      (WidgetTester tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Column(
+            children: [
+              KidCard(
+                isSelected: true,
+                child: const Text('Thẻ đang chọn'),
+              ),
+              KidButton(
+                onPressed: () {},
+                label: 'Nút đang chọn',
+                isSelected: true,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('Thẻ đang chọn'), findsOneWidget);
+    expect(find.text('Nút đang chọn'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+}
+
+double _contrastRatio(Color first, Color second) {
+  final firstLuminance = first.computeLuminance();
+  final secondLuminance = second.computeLuminance();
+  final lighter =
+      firstLuminance > secondLuminance ? firstLuminance : secondLuminance;
+  final darker =
+      firstLuminance > secondLuminance ? secondLuminance : firstLuminance;
+
+  return (lighter + 0.05) / (darker + 0.05);
 }

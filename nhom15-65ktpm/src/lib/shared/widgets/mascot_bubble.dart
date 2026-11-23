@@ -1,15 +1,20 @@
 import 'package:flutter/material.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_dimensions.dart';
+import 'panda_mascot.dart';
 
 class MascotBubbleWidget extends StatelessWidget {
   final String speechText;
   final VoidCallback? onMascotTap;
+  final PandaExpression expression;
+  final Map<PandaExpression, ImageProvider> expressionImages;
 
   const MascotBubbleWidget({
     super.key,
     required this.speechText,
     this.onMascotTap,
+    this.expression = PandaExpression.happy,
+    this.expressionImages = const {},
   });
 
   @override
@@ -36,8 +41,12 @@ class MascotBubbleWidget extends StatelessWidget {
                   ),
                 ],
               ),
-              child: const Center(
-                child: Text('🐼', style: TextStyle(fontSize: 48)),
+              child: Center(
+                child: PandaMascot(
+                  expression: expression,
+                  image: expressionImages[expression],
+                  size: 72,
+                ),
               ),
             ),
           ),
@@ -58,13 +67,10 @@ class MascotBubbleWidget extends StatelessWidget {
                 bottomLeft: Radius.circular(4),
               ),
             ),
-            child: const Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                Text('✋', style: TextStyle(fontSize: 34)),
-                Text('➕', style: TextStyle(fontSize: 34)),
-                Text('⚡', style: TextStyle(fontSize: 34)),
-              ],
+            child: Text(
+              speechText,
+              style: const TextStyle(fontSize: 16, color: Colors.white),
+              textAlign: TextAlign.start,
             ),
           ),
         ),
