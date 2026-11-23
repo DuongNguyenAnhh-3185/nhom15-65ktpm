@@ -113,7 +113,26 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         );
       },
-    );
+    ).then((_) => _loadProfile());
+  }
+
+  /// Biểu cảm Panda dựa trên chuỗi Streak hiện tại.
+  PandaExpression get _pandaExpression {
+    final streak = _profile?.streakCount ?? 0;
+    if (streak >= 7) return PandaExpression.celebrating;
+    if (streak >= 3) return PandaExpression.encouraging;
+    return PandaExpression.happy;
+  }
+
+  /// Lời nhắn ngắn của Panda; tên bé và Streak được hiển thị bên dưới.
+  String get _greetingText {
+    final streak = _profile?.streakCount ?? 0;
+    if (streak >= 7) {
+      return 'Cùng giữ phong độ tuyệt vời nhé! 🎉';
+    } else if (streak >= 3) {
+      return 'Mình cùng giữ chuỗi ngày học nhé! 🔥';
+    }
+    return 'Hôm nay mình cùng chơi toán nhé!';
   }
 
   @override
@@ -154,38 +173,49 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                         ),
                       ],
-                    ),
-                  ),
-
-                  // Nút Cổng Phụ Huynh (Parental Gate)
-                  IconButton(
-                    tooltip: 'Phụ huynh',
-                    constraints: const BoxConstraints(
-                      minWidth: AppDimensions.minTouchSize,
-                      minHeight: AppDimensions.minTouchSize,
-                    ),
-                    onPressed: () {
-                      ParentalGateDialog.show(
-                        context,
-                        onPass: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => const ParentDashboardScreen(),
-                            ),
-                          ).then((_) => _loadProfile());
-                        },
-                      );
-                    },
-                    icon: Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.08),
-                            blurRadius: 8,
+                      const SizedBox(height: 20),
+                      Text(
+                        'Chọn hoạt động',
+                        textAlign: TextAlign.center,
+                        style: Theme.of(context).textTheme.titleLarge,
+                      ),
+                      const SizedBox(height: 12),
+                      GridView.count(
+                        crossAxisCount: isTablet ? 4 : 2,
+                        crossAxisSpacing: 12,
+                        mainAxisSpacing: 12,
+                        childAspectRatio: isTablet ? 1.15 : 0.92,
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        children: [
+                          _buildFeatureCard(
+                            label: 'Tập đếm',
+                            semanticLabel: 'Tập đếm ngón tay tự do',
+                            icon: Icons.back_hand_rounded,
+                            color: AppColors.secondary,
+                            onTap: _openFreePlayModal,
+                          ),
+                          _buildFeatureCard(
+                            label: 'Luyện tập',
+                            semanticLabel:
+                                'Chọn bài luyện toán cơ bản hoặc công thức',
+                            icon: Icons.calculate_rounded,
+                            color: AppColors.primary,
+                            onTap: _openPracticeOptions,
+                          ),
+                          _buildFeatureCard(
+                            label: 'Flash Anzan',
+                            semanticLabel: 'Luyện tính nhẩm Flash Anzan',
+                            icon: Icons.bolt_rounded,
+                            color: AppColors.accentPurple,
+                            onTap: _openFlashAnzan,
+                          ),
+                          _buildFeatureCard(
+                            label: 'Phụ huynh',
+                            semanticLabel: 'Mở cổng phụ huynh',
+                            icon: Icons.family_restroom_rounded,
+                            color: AppColors.success,
+                            onTap: _openParentDashboard,
                           ),
                         ],
                       ),
@@ -367,15 +397,63 @@ class _HomeScreenState extends State<HomeScreen> {
     required String badgeText,
     required VoidCallback onTap,
   }) {
-    return Semantics(
-      label: '$title. $subtitle. $badgeText',
-      button: true,
-      child: GestureDetector(
-        onTap: () {
-          HapticFeedback.selectionClick();
-          onTap();
-        },
-        child: Container(
+    return KidCard(
+      onTap: () {
+        onTap();
+      },
+      semanticLabel: semanticLabel,
+      color: AppColors.cardBg,
+      padding: const EdgeInsets.all(12),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            width: 64,
+            height: 64,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.16),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, size: 38, color: color),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  fontSize: 16,
+                  color: AppColors.textDark,
+                ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _openParentDashboard() {
+    ParentalGateDialog.show(
+      context,
+      onPass: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => const ParentDashboardScreen(),
+          ),
+        ).then((_) => _loadProfile());
+      },
+    );
+  }
+
+  void _openPracticeOptions() {
+    showModalBottomSheet<void>(
+      context: context,
+      useSafeArea: true,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) {
+        return Container(
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
             color: color,
