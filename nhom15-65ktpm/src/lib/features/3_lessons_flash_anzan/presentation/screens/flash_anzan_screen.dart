@@ -23,6 +23,14 @@ enum FlashState {
   finished,
 }
 
+class _FlashStep {
+  const _FlashStep(this.display, this.spoken, {this.isSubtraction = false});
+
+  final String display;
+  final String spoken;
+  final bool isSubtraction;
+}
+
 class FlashAnzanScreen extends StatefulWidget {
   const FlashAnzanScreen({super.key});
 
@@ -37,6 +45,7 @@ class _FlashAnzanScreenState extends State<FlashAnzanScreen> {
   FlashState _state = FlashState.idle;
   int _flashSpeedMs = 1200; // Tốc độ chớp số thích ứng
   List<int> _numbers = [];
+  List<_FlashStep> _flashSteps = [];
   int _currentIndex = 0;
   int _expectedAnswer = 0;
   int? _userAnswer;
@@ -79,6 +88,7 @@ class _FlashAnzanScreenState extends State<FlashAnzanScreen> {
 
     setState(() {
       _numbers = question.operands;
+      _flashSteps = _buildFlashSteps(_numbers);
       _expectedAnswer = question.expectedAnswer;
       _currentIndex = 0;
       _userAnswer = null;
@@ -114,39 +124,51 @@ class _FlashAnzanScreenState extends State<FlashAnzanScreen> {
         _audioService.speak('Bắt đầu!');
         _flashTimer = Timer(const Duration(milliseconds: 700), () {
           if (!mounted || token != _sessionToken) return;
-          _showNumber(0, token);
+          _showFlashStep(0, token);
         });
       }
     });
   }
 
-  void _showNumber(int index, int token) {
+  List<_FlashStep> _buildFlashSteps(List<int> numbers) {
+    if (numbers.isEmpty) return const [];
+    final steps = <_FlashStep>[
+      _FlashStep('${numbers.first}', '${numbers.first}'),
+    ];
+    for (final number in numbers.skip(1)) {
+      final isSubtraction = number < 0;
+      steps
+        ..add(_FlashStep(
+            isSubtraction ? '−' : '+', isSubtraction ? 'trừ' : 'cộng',
+            isSubtraction: isSubtraction))
+        ..add(_FlashStep('${number.abs()}', '${number.abs()}',
+            isSubtraction: isSubtraction));
+    }
+    return steps;
+  }
+
+  void _showFlashStep(int index, int token) {
     if (!mounted || token != _sessionToken) return;
     setState(() {
       _currentIndex = index;
       _state = FlashState.flashing;
     });
-    final number = _numbers[index];
-    final spoken = index == 0
-        ? '$number'
-        : number > 0
-            ? 'cộng $number'
-            : 'trừ ${number.abs()}';
-    _audioService.speak(spoken);
+    final step = _flashSteps[index];
+    _audioService.speak(step.spoken);
 
     _flashTimer = Timer(Duration(milliseconds: _flashSpeedMs), () {
       if (!mounted || token != _sessionToken) return;
       setState(() => _state = FlashState.pause);
       _flashTimer = Timer(const Duration(milliseconds: 180), () {
         if (!mounted || token != _sessionToken) return;
-        if (index + 1 < _numbers.length) {
-          _showNumber(index + 1, token);
+        if (index + 1 < _flashSteps.length) {
+          _showFlashStep(index + 1, token);
         } else {
           setState(() {
             _state = FlashState.waitingAnswer;
             _questionStartTime = DateTime.now();
           });
-          _audioService.speak('Bằng mấy bé ơi? Hãy đọc to hoặc chọn đáp án!');
+          _audioService.speak('Bằng:');
         }
       });
     });
@@ -283,7 +305,7 @@ class _FlashAnzanScreenState extends State<FlashAnzanScreen> {
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Text(
-                      'Tốc độ chớp số AI: ${_flashSpeedMs}ms / số',
+                      'Tốc độ chớp số AI: ${_flashSpeedMs}ms / nhịp',
                       style: const TextStyle(
                         color: AppColors.accentPurple,
                         fontWeight: FontWeight.w800,
@@ -476,14 +498,13 @@ class _FlashAnzanScreenState extends State<FlashAnzanScreen> {
     }
 
     if (_state == FlashState.flashing) {
-      final currentNum = _numbers[_currentIndex];
-      final sign = currentNum > 0 ? (_currentIndex > 0 ? '+' : '') : '';
+      final step = _flashSteps[_currentIndex];
       return Text(
-        '$sign$currentNum',
+        step.display,
         style: TextStyle(
           fontSize: 84,
           fontWeight: FontWeight.w900,
-          color: currentNum > 0 ? AppColors.primary : AppColors.error,
+          color: step.isSubtraction ? AppColors.error : AppColors.primary,
         ),
       );
     }
@@ -492,7 +513,7 @@ class _FlashAnzanScreenState extends State<FlashAnzanScreen> {
 
     if (_state == FlashState.waitingAnswer) {
       return const Text(
-        '?',
+        '= ?',
         style: TextStyle(
             fontSize: 92,
             fontWeight: FontWeight.w900,
@@ -522,24 +543,48 @@ class _FlashAnzanScreenState extends State<FlashAnzanScreen> {
     }
     final list = opts.toList()..shuffle();
 
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-      children: list.map((n) {
-        return ElevatedButton(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.white,
-            foregroundColor: AppColors.primary,
-            elevation: 2,
-            minimumSize: const Size(60, 54),
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          ),
-          onPressed: () => _submitAnswer(n),
-          child: Text('$n',
-              style:
-                  const TextStyle(fontSize: 22, fontWeight: FontWeight.w900)),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        const spacing = 8.0;
+        final columnCount = constraints.maxWidth >= 500
+            ? 7
+            : constraints.maxWidth >= 360
+                ? 4
+                : 3;
+        final buttonWidth =
+            (constraints.maxWidth - spacing * (columnCount - 1)) / columnCount;
+
+        return Wrap(
+          alignment: WrapAlignment.center,
+          spacing: spacing,
+          runSpacing: spacing,
+          children: list.map((n) {
+            return SizedBox(
+              width: buttonWidth,
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.white,
+                  foregroundColor: AppColors.primary,
+                  elevation: 2,
+                  minimumSize: Size(buttonWidth, 50),
+                  padding: EdgeInsets.zero,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                ),
+                onPressed: () => _submitAnswer(n),
+                child: Text(
+                  '$n',
+                  style: const TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+            );
+          }).toList(),
         );
-      }).toList(),
+      },
     );
   }
 }
