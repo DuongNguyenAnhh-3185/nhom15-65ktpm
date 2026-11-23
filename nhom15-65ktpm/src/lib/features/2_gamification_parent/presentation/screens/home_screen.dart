@@ -121,19 +121,15 @@ class _HomeScreenState extends State<HomeScreen> {
     return PandaExpression.happy;
   }
 
-  /// Lời chào động theo tên bé và chuỗi Streak.
+  /// Lời nhắn ngắn của Panda; tên bé và Streak được hiển thị bên dưới.
   String get _greetingText {
-    final name = _profile?.name;
     final streak = _profile?.streakCount ?? 0;
-    final greeting = name != null && name.isNotEmpty
-        ? 'Chào bé $name!'
-        : 'Chào bé!';
     if (streak >= 7) {
-      return '$greeting Tuyệt vời! $streak ngày liên tiếp rồi! 🎉';
+      return 'Cùng giữ phong độ tuyệt vời nhé! 🎉';
     } else if (streak >= 3) {
-      return '$greeting Giỏi lắm! $streak ngày liên tiếp! 🔥';
+      return 'Mình cùng giữ chuỗi ngày học nhé! 🔥';
     }
-    return '$greeting Hôm nay mình cùng chơi toán nhé!';
+    return 'Hôm nay mình cùng chơi toán nhé!';
   }
 
   @override
@@ -197,7 +193,13 @@ class _HomeScreenState extends State<HomeScreen> {
                         const SizedBox(height: 12),
                         _buildReminderBanner(),
                       ],
-                      const SizedBox(height: 24),
+                      const SizedBox(height: 20),
+                      Text(
+                        'Chọn hoạt động',
+                        textAlign: TextAlign.center,
+                        style: Theme.of(context).textTheme.titleLarge,
+                      ),
+                      const SizedBox(height: 12),
                       GridView.count(
                         crossAxisCount: isTablet ? 4 : 2,
                         crossAxisSpacing: 12,
