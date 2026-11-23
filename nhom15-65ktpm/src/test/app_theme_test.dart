@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:soroban_kids_app/core/constants/app_colors.dart';
+import 'package:soroban_kids_app/core/constants/app_dimensions.dart';
+import 'package:soroban_kids_app/core/theme/app_theme.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -25,6 +27,8 @@ void main() {
     expect(_contrastRatio(AppColors.warning, AppColors.onWarning),
         greaterThanOrEqualTo(4.5));
     expect(_contrastRatio(AppColors.error, AppColors.onError),
+        greaterThanOrEqualTo(4.5));
+    expect(_contrastRatio(AppColors.info, AppColors.onInfo),
         greaterThanOrEqualTo(4.5));
   });
 
@@ -52,6 +56,70 @@ void main() {
         greaterThanOrEqualTo(3),
       );
     }
+  });
+
+  test('Semantic color definitions match Zero-Text UI specifications', () {
+    // 3 màu chủ đạo bắt buộc
+    expect(AppColors.primary, const Color(0xFFE05638)); // Cam đất
+    expect(AppColors.secondary, const Color(0xFFFACC15)); // Vàng chuối
+    expect(AppColors.accentPurple, const Color(0xFF8B5CF6)); // Tím mộng mơ
+    expect(AppColors.tertiary, AppColors.accentPurple);
+
+    // Bề mặt & Màu nền
+    expect(AppColors.background, const Color(0xFFF7F9FC));
+    expect(AppColors.cardBg, Colors.white);
+    expect(AppColors.surface, const Color(0xFFEDF2F7));
+    expect(AppColors.outline, const Color(0xFFCBD5E1));
+
+    // Văn bản
+    expect(AppColors.textPrimary, AppColors.textDark);
+    expect(AppColors.textSecondary, AppColors.textLight);
+
+    // Trạng thái
+    expect(AppColors.success, const Color(0xFF176B4D));
+    expect(AppColors.warning, const Color(0xFFFFBF69));
+    expect(AppColors.error, const Color(0xFFB3261E));
+    expect(AppColors.info, const Color(0xFF176B87));
+
+    // Dữ liệu biểu đồ fl_chart cho Parent Dashboard
+    expect(AppColors.chartPrimary, AppColors.primary);
+    expect(AppColors.chartSecondary, AppColors.secondary);
+    expect(AppColors.chartAccent, AppColors.accentPurple);
+    expect(AppColors.chartSuccess, const Color(0xFF10B981));
+    expect(AppColors.chartWarning, const Color(0xFFF59E0B));
+    expect(AppColors.chartGrid, const Color(0xFFE2E8F0));
+  });
+
+  test('ThemeData integrates Zero-Text UI color scheme and components', () {
+    final theme = AppTheme.kidTheme;
+    expect(theme.useMaterial3, isTrue);
+
+    // ColorScheme
+    expect(theme.colorScheme.primary, AppColors.primary);
+    expect(theme.colorScheme.onPrimary, AppColors.onPrimary);
+    expect(theme.colorScheme.secondary, AppColors.secondary);
+    expect(theme.colorScheme.onSecondary, AppColors.onSecondary);
+    expect(theme.colorScheme.tertiary, AppColors.accentPurple);
+    expect(theme.colorScheme.error, AppColors.error);
+    expect(theme.colorScheme.onError, AppColors.onError);
+    expect(theme.colorScheme.surface, AppColors.background);
+
+    // Scaffold & Background
+    expect(theme.scaffoldBackgroundColor, AppColors.background);
+
+    // Nút bấm & Touch target chuẩn WCAG (minTouchSize >= 48)
+    expect(AppDimensions.minTouchSize, greaterThanOrEqualTo(48.0));
+    final elevatedStyle = theme.elevatedButtonTheme.style;
+    expect(elevatedStyle, isNotNull);
+
+    // Card, Dialog & BottomSheet themes
+    expect(theme.cardTheme.color, AppColors.cardBg);
+    expect(theme.dialogTheme.backgroundColor, AppColors.cardBg);
+    expect(theme.bottomSheetTheme.backgroundColor, AppColors.cardBg);
+
+    // Parent theme
+    final parentTheme = AppTheme.parentTheme;
+    expect(parentTheme.scaffoldBackgroundColor, AppColors.parentSurface);
   });
 }
 

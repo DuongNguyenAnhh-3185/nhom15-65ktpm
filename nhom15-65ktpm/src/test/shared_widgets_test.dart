@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:soroban_kids_app/core/constants/app_colors.dart';
+import 'package:soroban_kids_app/shared/entities/badge_item.dart';
+import 'package:soroban_kids_app/shared/widgets/kid_badge_card.dart';
 import 'package:soroban_kids_app/shared/widgets/kid_button.dart';
 import 'package:soroban_kids_app/shared/widgets/kid_card.dart';
 import 'package:soroban_kids_app/shared/widgets/kid_decoration.dart';
 import 'package:soroban_kids_app/shared/widgets/kid_progress_bar.dart';
+import 'package:soroban_kids_app/shared/widgets/kid_status_banner.dart';
 import 'package:soroban_kids_app/shared/widgets/kid_status_icon.dart';
 
 void main() {
@@ -199,6 +202,23 @@ void main() {
                 const KidDecoration(
                   type: KidDecorationType.star,
                 ),
+                const KidBadgeCard(
+                  badge: BadgeItem(
+                    id: 'streak_3_days',
+                    title: 'Chiến Binh',
+                    description: 'Học 3 ngày',
+                    icon: '🔥',
+                    category: 'streak',
+                  ),
+                  isUnlocked: true,
+                ),
+                KidStatusBanner(
+                  status: KidStatusType.warning,
+                  title: 'Nhắc nhở học tập',
+                  subtitle: 'Giờ học 19:00',
+                  actionLabel: 'Học ngay',
+                  onAction: () {},
+                ),
               ],
             ),
           ),
@@ -207,6 +227,123 @@ void main() {
 
       expect(tester.takeException(), isNull);
     }
+  });
+
+  testWidgets('KidBadgeCard displays badge icon, title and status correctly',
+      (WidgetTester tester) async {
+    var tapped = false;
+    const testBadge = BadgeItem(
+      id: 'streak_3_days',
+      title: 'Chiến Binh Chăm Chỉ',
+      description: 'Học liên tục 3 ngày',
+      icon: '🔥',
+      category: 'streak',
+    );
+
+    // Test trạng thái đã mở khóa
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Center(
+            child: KidBadgeCard(
+              badge: testBadge,
+              isUnlocked: true,
+              onTap: () => tapped = true,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('🔥'), findsOneWidget);
+    expect(find.text('Chiến Binh Chăm Chỉ'), findsOneWidget);
+    expect(find.text('Đã đạt'), findsOneWidget);
+
+    final cardSize = tester.getSize(find.byType(KidBadgeCard));
+    expect(cardSize.width, greaterThanOrEqualTo(48.0));
+    expect(cardSize.height, greaterThanOrEqualTo(48.0));
+
+    await tester.tap(find.byType(KidBadgeCard));
+    await tester.pumpAndSettle();
+    expect(tapped, isTrue);
+
+    // Test trạng thái chưa mở khóa
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: Center(
+            child: KidBadgeCard(
+              badge: testBadge,
+              isUnlocked: false,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('Chưa mở'), findsOneWidget);
+  });
+
+  testWidgets('KidStatusBanner renders status, title, action and dismisses',
+      (WidgetTester tester) async {
+    var actionTapped = false;
+    var dismissTapped = false;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: KidStatusBanner(
+            status: KidStatusType.warning,
+            iconEmoji: '⏰',
+            title: 'Đã 19:00 rồi!',
+            subtitle: 'Giờ luyện tập Finger Math!',
+            actionLabel: 'Bắt đầu',
+            onAction: () => actionTapped = true,
+            onDismiss: () => dismissTapped = true,
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('⏰'), findsOneWidget);
+    expect(find.text('Đã 19:00 rồi!'), findsOneWidget);
+    expect(find.text('Giờ luyện tập Finger Math!'), findsOneWidget);
+    expect(find.text('Bắt đầu'), findsOneWidget);
+
+    await tester.tap(find.text('Bắt đầu'));
+    await tester.pumpAndSettle();
+    expect(actionTapped, isTrue);
+
+    await tester.tap(find.byIcon(Icons.close_rounded));
+    await tester.pumpAndSettle();
+    expect(dismissTapped, isTrue);
+  });
+
+  testWidgets('KidCard and KidButton support isSelected state',
+      (WidgetTester tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Column(
+            children: [
+              KidCard(
+                isSelected: true,
+                child: const Text('Thẻ đang chọn'),
+              ),
+              KidButton(
+                onPressed: () {},
+                label: 'Nút đang chọn',
+                isSelected: true,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('Thẻ đang chọn'), findsOneWidget);
+    expect(find.text('Nút đang chọn'), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 }
 

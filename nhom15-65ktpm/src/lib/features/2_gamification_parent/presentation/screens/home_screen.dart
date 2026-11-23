@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../../../core/constants/app_colors.dart';
-import '../../../../core/constants/app_dimensions.dart';
 import '../../../../core/services/audio_service.dart';
 import '../../../../core/services/reminder_service.dart';
 import '../../../../core/services/storage_service.dart';
@@ -10,6 +9,8 @@ import '../../../../shared/entities/child_profile.dart';
 import '../../../../shared/widgets/kid_button.dart';
 import '../../../../shared/widgets/kid_card.dart';
 import '../../../../shared/widgets/kid_decoration.dart';
+import '../../../../shared/widgets/kid_status_banner.dart';
+import '../../../../shared/widgets/kid_status_icon.dart';
 import '../../../../shared/widgets/mascot_bubble.dart';
 import '../../../../shared/widgets/panda_mascot.dart';
 import 'package:soroban_kids_app/features/1_abacus_engine/presentation/controllers/finger_math_controller.dart';
@@ -296,65 +297,22 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildReminderBanner() {
-    return Container(
+    return KidStatusBanner(
+      status: KidStatusType.warning,
+      iconEmoji: '⏰',
+      title: 'Đã 19:00 rồi! Giờ luyện tập Finger Math!',
+      subtitle: 'Cùng luyện tập để giữ ngọn lửa chuỗi Streak nhé bé ơi! 🔥',
+      actionLabel: '👉 Bắt đầu ngay!',
+      onAction: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => const LessonPlayScreen(level: 1),
+          ),
+        ).then((_) => _loadProfile());
+      },
+      onDismiss: () => setState(() => _showReminderBanner = false),
       margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: AppColors.accentOrange.withValues(alpha: 0.14),
-        borderRadius: BorderRadius.circular(20),
-        border:
-            Border.all(color: AppColors.accentOrange.withValues(alpha: 0.5)),
-      ),
-      child: Row(
-        children: [
-          const Text('⏰', style: TextStyle(fontSize: 26)),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Đã 19:00 rồi! Giờ luyện tập Finger Math!',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14,
-                    color: AppColors.accentOrange,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                const Text(
-                  'Cùng luyện tập để giữ ngọn lửa chuỗi Streak nhé bé ơi! 🔥',
-                  style: TextStyle(fontSize: 12, color: AppColors.textDark),
-                ),
-                const SizedBox(height: 6),
-                InkWell(
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const LessonPlayScreen(level: 1),
-                      ),
-                    ).then((_) => _loadProfile());
-                  },
-                  child: const Text(
-                    '👉 Bắt đầu ngay!',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 13,
-                      color: AppColors.primary,
-                      decoration: TextDecoration.underline,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          IconButton(
-            icon: const Icon(Icons.close, size: 18, color: AppColors.textLight),
-            onPressed: () => setState(() => _showReminderBanner = false),
-          ),
-        ],
-      ),
     );
   }
 

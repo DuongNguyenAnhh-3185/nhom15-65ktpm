@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_dimensions.dart';
 
@@ -11,6 +12,7 @@ class KidButton extends StatefulWidget {
   final Color? textColor;
   final double? width;
   final double height;
+  final bool isSelected;
 
   const KidButton({
     super.key,
@@ -22,6 +24,7 @@ class KidButton extends StatefulWidget {
     this.textColor,
     this.width,
     this.height = AppDimensions.buttonHeight,
+    this.isSelected = false,
   })  : assert(label != null || icon != null),
         assert(label != null || semanticLabel != null);
 
@@ -52,62 +55,74 @@ class _KidButtonState extends State<KidButton> {
     return Semantics(
       label: widget.semanticLabel ?? widget.label,
       button: true,
+      selected: widget.isSelected,
       onTap: widget.onPressed,
       child: ExcludeSemantics(
         child: Material(
           color: widget.backgroundColor,
-          elevation: 3,
+          elevation: widget.isSelected ? 5 : 3,
           borderRadius: borderRadius,
-          child: InkWell(
-            onTap: widget.onPressed,
-            onTapDown: (_) => setState(() => _scale = 0.94),
-            onTapUp: (_) => setState(() => _scale = 1.0),
-            onTapCancel: () => setState(() => _scale = 1.0),
-            borderRadius: borderRadius,
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(
-                minWidth: AppDimensions.minTouchSize,
-                minHeight: AppDimensions.minTouchSize,
-              ),
-              child: SizedBox(
-                width: width,
-                height: height,
-                child: Padding(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: horizontalPadding,
-                  ),
-                  child: Center(
-                    child: AnimatedScale(
-                      scale: _scale,
-                      duration: const Duration(milliseconds: 100),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          if (widget.icon != null)
-                            Icon(
-                              widget.icon,
-                              color: foregroundColor,
-                              size: 28,
-                            ),
-                          if (widget.icon != null && widget.label != null)
-                            const SizedBox(width: 8),
-                          if (widget.label != null)
-                            Flexible(
-                              child: Text(
-                                widget.label!,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .labelLarge
-                                    ?.copyWith(
-                                      color: foregroundColor,
-                                      fontSize: 20,
-                                      fontWeight: FontWeight.w800,
-                                    ),
+          child: Container(
+            decoration: BoxDecoration(
+              borderRadius: borderRadius,
+              border: widget.isSelected
+                  ? Border.all(color: Colors.white, width: 2.5)
+                  : null,
+            ),
+            child: InkWell(
+              onTap: () {
+                HapticFeedback.selectionClick();
+                widget.onPressed();
+              },
+              onTapDown: (_) => setState(() => _scale = 0.94),
+              onTapUp: (_) => setState(() => _scale = 1.0),
+              onTapCancel: () => setState(() => _scale = 1.0),
+              borderRadius: borderRadius,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(
+                  minWidth: AppDimensions.minTouchSize,
+                  minHeight: AppDimensions.minTouchSize,
+                ),
+                child: SizedBox(
+                  width: width,
+                  height: height,
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: horizontalPadding,
+                    ),
+                    child: Center(
+                      child: AnimatedScale(
+                        scale: _scale,
+                        duration: const Duration(milliseconds: 100),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (widget.icon != null)
+                              Icon(
+                                widget.icon,
+                                color: foregroundColor,
+                                size: 28,
                               ),
-                            ),
-                        ],
+                            if (widget.icon != null && widget.label != null)
+                              const SizedBox(width: 8),
+                            if (widget.label != null)
+                              Flexible(
+                                child: Text(
+                                  widget.label!,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .labelLarge
+                                      ?.copyWith(
+                                        color: foregroundColor,
+                                        fontSize: 20,
+                                        fontWeight: FontWeight.w800,
+                                      ),
+                                ),
+                              ),
+                          ],
+                        ),
                       ),
                     ),
                   ),
