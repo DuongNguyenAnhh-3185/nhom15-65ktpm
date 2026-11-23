@@ -7,6 +7,9 @@ import '../../../../core/services/reminder_service.dart';
 import '../../../../core/services/storage_service.dart';
 import '../../../../injection_container.dart';
 import '../../../../shared/entities/child_profile.dart';
+import '../../../../shared/widgets/kid_button.dart';
+import '../../../../shared/widgets/kid_card.dart';
+import '../../../../shared/widgets/kid_decoration.dart';
 import '../../../../shared/widgets/mascot_bubble.dart';
 import 'package:soroban_kids_app/features/1_abacus_engine/presentation/controllers/finger_math_controller.dart';
 import 'package:soroban_kids_app/features/1_abacus_engine/presentation/widgets/finger_math_board_widget.dart';
@@ -120,161 +123,168 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // Thanh tiêu đề trên cùng
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Semantics(
-                    label: 'Chuỗi ngày học, ${_profile?.streakCount ?? 1} ngày',
-                    child: Container(
-                      width: 56,
-                      height: 56,
-                      decoration: BoxDecoration(
-                        color: AppColors.accentYellow,
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: AppColors.primary, width: 2),
-                      ),
-                      child: const Center(
-                        child: Text('🔥', style: TextStyle(fontSize: 28)),
-                      ),
-                    ),
-                  ),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final isTablet = constraints.maxWidth >= 640;
+            final horizontalPadding = constraints.maxWidth < 360 ? 12.0 : 20.0;
+            final mascotWidth =
+                constraints.maxWidth < 352 ? constraints.maxWidth - 32 : 320.0;
 
-                  // Nút Cổng Phụ Huynh (Parental Gate)
-                  IconButton(
-                    tooltip: 'Phụ huynh',
-                    constraints: const BoxConstraints(
-                      minWidth: AppDimensions.minTouchSize,
-                      minHeight: AppDimensions.minTouchSize,
-                    ),
-                    onPressed: () {
-                      ParentalGateDialog.show(
-                        context,
-                        onPass: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => const ParentDashboardScreen(),
-                            ),
-                          ).then((_) => _loadProfile());
-                        },
-                      );
-                    },
-                    icon: Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.08),
-                            blurRadius: 8,
+            return SingleChildScrollView(
+              padding: EdgeInsets.symmetric(
+                horizontal: horizontalPadding,
+                vertical: 16,
+              ),
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 1000),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const KidDecoration(type: KidDecorationType.star),
+                          KidButton(
+                            onPressed: _openParentDashboard,
+                            icon: Icons.settings_rounded,
+                            semanticLabel: 'Khu vực phụ huynh',
+                            backgroundColor: AppColors.cardBg,
+                            width: 52,
+                            height: 52,
                           ),
                         ],
                       ),
-                      child: const Icon(
-                        Icons.settings,
-                        color: AppColors.textLight,
-                        size: 26,
+                      const SizedBox(height: 8),
+                      Center(
+                        child: SizedBox(
+                          width: mascotWidth,
+                          child: MascotBubbleWidget(
+                            speechText:
+                                'Chào bé! Hôm nay mình cùng chơi toán nhé!',
+                            onMascotTap: () {
+                              _audioService.speak(
+                                'Chào bé! Hôm nay mình cùng chơi toán nhé!',
+                              );
+                            },
+                          ),
+                        ),
                       ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-
-              // Banner nhắc nhở học cố định 19:00 (nếu đến giờ mà chưa luyện tập hôm nay)
-              if (_showReminderBanner) _buildReminderBanner(),
-
-              const SizedBox(height: 12),
-
-              // Linh vật hoạt hình Mascot
-              MascotBubbleWidget(
-                speechText:
-                    'Hôm nay bé muốn đếm ngón tay Finger Math hay thi đấu tính nhẩm nhanh nè?',
-                onMascotTap: () {
-                  _audioService.speak(
-                    'Hôm nay bé muốn đếm ngón tay Finger Math hay thi đấu tính nhẩm nhanh nè?',
-                  );
-                },
-              ),
-              const SizedBox(height: 24),
-
-              // Danh sách 3 Cấp độ học tập dạng thẻ to rực rỡ
-              _buildLevelCard(
-                title: 'CẤP ĐỘ 1: FINGER MATH CƠ BẢN',
-                subtitle:
-                    'Đếm ngón 0-9: Tay Phải hàng đơn vị, Tay Trái hàng chục',
-                color: AppColors.secondary,
-                emoji: '✌️',
-                badgeText: 'Cơ Bản',
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const LessonPlayScreen(level: 1),
-                    ),
-                  ).then((_) => _loadProfile());
-                },
-              ),
-              const SizedBox(height: 16),
-
-              _buildLevelCard(
-                title: 'CẤP ĐỘ 2: ANH BẠN NHỎ & ANH BẠN LỚN',
-                subtitle:
-                    'Công thức xòe/gập ngón tay: +4 = +5 - 1, +9 = +10 - 1',
-                color: AppColors.primary,
-                emoji: '👍',
-                badgeText: 'Công Thức',
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const LessonPlayScreen(level: 2),
-                    ),
-                  ).then((_) => _loadProfile());
-                },
-              ),
-              const SizedBox(height: 16),
-
-              _buildLevelCard(
-                title: 'CẤP ĐỘ 3: FLASH ANZAN FINGER MATH',
-                subtitle: 'Tính nhẩm nhanh siêu tốc bằng 2 bàn tay (0 - 99)',
-                color: AppColors.accentPurple,
-                emoji: '⚡',
-                badgeText: 'Siêu Tốc',
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const FlashAnzanScreen(),
-                    ),
-                  ).then((_) => _loadProfile());
-                },
-              ),
-              const SizedBox(height: 20),
-
-              // Nút Bàn tay Finger Math tự do
-              OutlinedButton(
-                onPressed: _openFreePlayModal,
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: AppColors.primary,
-                  side: const BorderSide(color: AppColors.primary, width: 2),
-                  minimumSize: const Size(48, 64),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(20),
+                      const SizedBox(height: 12),
+                      Text(
+                        _profile == null
+                            ? 'Chào bé!'
+                            : 'Chào bé ${_profile!.name}!',
+                        textAlign: TextAlign.center,
+                        style: Theme.of(context).textTheme.headlineLarge,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Hôm nay mình cùng chơi toán nhé!',
+                        textAlign: TextAlign.center,
+                        style: Theme.of(context).textTheme.bodyLarge,
+                      ),
+                      const SizedBox(height: 20),
+                      _buildStreakCard(context),
+                      if (_showReminderBanner) ...[
+                        const SizedBox(height: 12),
+                        _buildReminderBanner(),
+                      ],
+                      const SizedBox(height: 24),
+                      GridView.count(
+                        crossAxisCount: isTablet ? 4 : 2,
+                        crossAxisSpacing: 12,
+                        mainAxisSpacing: 12,
+                        childAspectRatio: isTablet ? 1.15 : 0.92,
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        children: [
+                          _buildFeatureCard(
+                            label: 'Tập đếm',
+                            semanticLabel: 'Tập đếm ngón tay tự do',
+                            icon: Icons.back_hand_rounded,
+                            color: AppColors.secondary,
+                            onTap: _openFreePlayModal,
+                          ),
+                          _buildFeatureCard(
+                            label: 'Toán cơ bản',
+                            semanticLabel: 'Luyện toán cơ bản cấp độ 1',
+                            icon: Icons.calculate_rounded,
+                            color: AppColors.primary,
+                            onTap: () => _openLesson(1),
+                          ),
+                          _buildFeatureCard(
+                            label: 'Công thức',
+                            semanticLabel:
+                                'Luyện công thức Anh bạn nhỏ và Anh bạn lớn',
+                            icon: Icons.swap_horiz_rounded,
+                            color: AppColors.accentPurple,
+                            onTap: () => _openLesson(2),
+                          ),
+                          _buildFeatureCard(
+                            label: 'Chớp số',
+                            semanticLabel: 'Luyện tính nhẩm Flash Anzan',
+                            icon: Icons.bolt_rounded,
+                            color: AppColors.success,
+                            onTap: _openFlashAnzan,
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
                 ),
-                child: const Text('✋', style: TextStyle(fontSize: 34)),
               ),
-            ],
-          ),
+            );
+          },
         ),
+      ),
+    );
+  }
+
+  Widget _buildStreakCard(BuildContext context) {
+    final streakCount = _profile?.streakCount;
+    return KidCard(
+      color: Theme.of(context).colorScheme.secondaryContainer,
+      semanticLabel: streakCount == null
+          ? 'Đang tải chuỗi ngày học'
+          : 'Chuỗi ngày học: $streakCount ngày',
+      child: Row(
+        children: [
+          Container(
+            width: 56,
+            height: 56,
+            decoration: const BoxDecoration(
+              color: AppColors.accentYellow,
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.local_fire_department_rounded,
+              color: AppColors.primary,
+              size: 34,
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Chuỗi ngày học',
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  streakCount == null ? 'Đang tải…' : '$streakCount ngày',
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
+              ],
+            ),
+          ),
+          const KidDecoration(
+            type: KidDecorationType.star,
+            size: 32,
+          ),
+        ],
       ),
     );
   }
@@ -342,58 +352,78 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildLevelCard({
-    required String title,
-    required String subtitle,
+  Widget _buildFeatureCard({
+    required String label,
+    required String semanticLabel,
+    required IconData icon,
     required Color color,
-    required String emoji,
-    required String badgeText,
     required VoidCallback onTap,
   }) {
-    return Semantics(
-      label: '$title. $subtitle. $badgeText',
-      button: true,
-      child: InkWell(
-        onTap: () {
-          HapticFeedback.selectionClick();
-          onTap();
-        },
-        borderRadius: BorderRadius.circular(28),
-        child: Container(
-          constraints: const BoxConstraints(minHeight: 112),
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: color,
-            borderRadius: BorderRadius.circular(28),
-            border: Border.all(
-              color: badgeText == 'Công Thức'
-                  ? AppColors.accentYellow
-                  : Colors.white,
-              width: 3,
+    return KidCard(
+      onTap: () {
+        HapticFeedback.selectionClick();
+        onTap();
+      },
+      semanticLabel: semanticLabel,
+      color: AppColors.cardBg,
+      padding: const EdgeInsets.all(12),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            width: 64,
+            height: 64,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.16),
+              shape: BoxShape.circle,
             ),
-            boxShadow: [
-              BoxShadow(
-                color: color.withValues(alpha: 0.35),
-                blurRadius: 14,
-                offset: const Offset(0, 6),
-              ),
-            ],
+            child: Icon(icon, size: 38, color: color),
           ),
-          child: Center(
-            child: Container(
-              width: 72,
-              height: 72,
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                shape: BoxShape.circle,
-              ),
-              child: Center(
-                child: Text(emoji, style: const TextStyle(fontSize: 42)),
-              ),
-            ),
+          const SizedBox(height: 10),
+          Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  fontSize: 16,
+                  color: AppColors.textDark,
+                ),
           ),
-        ),
+        ],
       ),
     );
+  }
+
+  void _openParentDashboard() {
+    ParentalGateDialog.show(
+      context,
+      onPass: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => const ParentDashboardScreen(),
+          ),
+        ).then((_) => _loadProfile());
+      },
+    );
+  }
+
+  void _openLesson(int level) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => LessonPlayScreen(level: level),
+      ),
+    ).then((_) => _loadProfile());
+  }
+
+  void _openFlashAnzan() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const FlashAnzanScreen(),
+      ),
+    ).then((_) => _loadProfile());
   }
 }
