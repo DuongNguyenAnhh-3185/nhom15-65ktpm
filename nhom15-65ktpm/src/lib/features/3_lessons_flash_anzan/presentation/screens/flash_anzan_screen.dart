@@ -8,10 +8,11 @@ import 'package:soroban_kids_app/core/services/storage_service.dart';
 import 'package:soroban_kids_app/features/2_gamification_parent/presentation/widgets/badge_unlock_dialog.dart';
 import 'package:soroban_kids_app/features/4_ai_voice_tutor/domain/engine/adaptive_tutor_engine.dart';
 import 'package:soroban_kids_app/features/4_ai_voice_tutor/presentation/widgets/voice_answer_mic_button.dart';
+import 'package:soroban_kids_app/features/question_generator/domain/question_generator.dart';
 import 'package:soroban_kids_app/injection_container.dart';
 import 'package:soroban_kids_app/shared/entities/attempt_log.dart';
 
-enum FlashState { idle, ready, flashing, waitingAnswer, finished }
+enum FlashState { idle, countdown, flashing, pause, waitingAnswer, finished }
 
 class FlashAnzanScreen extends StatefulWidget {
   const FlashAnzanScreen({super.key});
@@ -33,6 +34,8 @@ class _FlashAnzanScreenState extends State<FlashAnzanScreen> {
   bool _isCorrect = false;
   DateTime _questionStartTime = DateTime.now();
   Timer? _flashTimer;
+  int _sessionToken = 0;
+  int _countdownValue = 3;
   String _adaptiveNote = '';
 
   @override
@@ -43,90 +46,109 @@ class _FlashAnzanScreenState extends State<FlashAnzanScreen> {
 
   @override
   void dispose() {
+    _sessionToken++;
     _flashTimer?.cancel();
     super.dispose();
   }
 
   Future<void> _loadProfileSettings() async {
     final profile = await _storageService.getChildProfile();
+    if (!mounted) return;
     setState(() {
-      _flashSpeedMs = profile.flashSpeedMs;
+      _flashSpeedMs = profile.flashSpeedMs.clamp(500, 1500);
     });
   }
 
   void _startFlashSession() {
-    final random = Random();
-    // Sinh chuỗi 3 số đơn giản 1-9 với tổng không âm
-    final count = 3;
-    final nums = <int>[];
-    int sum = 0;
-
-    for (int i = 0; i < count; i++) {
-      if (i == 0) {
-        final n = random.nextInt(5) + 1;
-        nums.add(n);
-        sum = n;
-      } else {
-        final add = random.nextBool();
-        if (add) {
-          final n = random.nextInt(4) + 1;
-          nums.add(n);
-          sum += n;
-        } else {
-          final n = min(random.nextInt(3) + 1, sum);
-          nums.add(-n);
-          sum -= n;
-        }
-      }
-    }
+    _flashTimer?.cancel();
+    final token = ++_sessionToken;
+    final question = QuestionGenerator().generateForLevel(
+      QuestionLevel.flashAnzan,
+      flashTermCount: 3,
+      flashSpeedMs: _flashSpeedMs,
+    );
 
     setState(() {
-      _numbers = nums;
-      _expectedAnswer = sum;
+      _numbers = question.operands;
+      _expectedAnswer = question.expectedAnswer;
       _currentIndex = 0;
       _userAnswer = null;
       _isCorrect = false;
-      _state = FlashState.flashing;
+      _countdownValue = 3;
+      _state = FlashState.countdown;
       _adaptiveNote = '';
     });
 
     _audioService.speak('Sẵn sàng chớp số nào!');
+    _runCountdown(token);
+  }
 
-    _flashTimer = Timer.periodic(Duration(milliseconds: _flashSpeedMs), (timer) {
-      if (_currentIndex < _numbers.length - 1) {
-        setState(() {
-          _currentIndex++;
-        });
-        final currentNum = _numbers[_currentIndex];
-        final spoken = currentNum > 0 ? 'cộng $currentNum' : 'trừ ${currentNum.abs()}';
-        _audioService.speak(spoken);
+  void _runCountdown(int token) {
+    _flashTimer = Timer(const Duration(seconds: 1), () {
+      if (!mounted || token != _sessionToken) return;
+      if (_countdownValue > 1) {
+        setState(() => _countdownValue--);
+        _runCountdown(token);
       } else {
-        timer.cancel();
-        setState(() {
-          _state = FlashState.waitingAnswer;
-          _questionStartTime = DateTime.now();
-        });
-        _audioService.speak('Bằng mấy bé ơi? Hãy đọc to hoặc chọn đáp án!');
+        setState(() => _state = FlashState.flashing);
+        _showNumber(0, token);
       }
     });
   }
 
-  Future<void> _submitAnswer(int answer, {String method = 'abacus_touch'}) async {
+  void _showNumber(int index, int token) {
+    if (!mounted || token != _sessionToken) return;
+    setState(() {
+      _currentIndex = index;
+      _state = FlashState.flashing;
+    });
+    final number = _numbers[index];
+    final spoken = index == 0
+        ? '$number'
+        : number > 0
+            ? 'cộng $number'
+            : 'trừ ${number.abs()}';
+    _audioService.speak(spoken);
+
+    _flashTimer = Timer(Duration(milliseconds: _flashSpeedMs), () {
+      if (!mounted || token != _sessionToken) return;
+      setState(() => _state = FlashState.pause);
+      _flashTimer = Timer(const Duration(milliseconds: 180), () {
+        if (!mounted || token != _sessionToken) return;
+        if (index + 1 < _numbers.length) {
+          _showNumber(index + 1, token);
+        } else {
+          setState(() {
+            _state = FlashState.waitingAnswer;
+            _questionStartTime = DateTime.now();
+          });
+          _audioService.speak('Bằng mấy bé ơi? Hãy đọc to hoặc chọn đáp án!');
+        }
+      });
+    });
+  }
+
+  Future<void> _submitAnswer(int answer,
+      {String method = 'abacus_touch'}) async {
     if (_state != FlashState.waitingAnswer) return;
 
     final isCorrect = answer == _expectedAnswer;
-    final responseTime = DateTime.now().difference(_questionStartTime).inMilliseconds;
+    final responseTime =
+        DateTime.now().difference(_questionStartTime).inMilliseconds;
 
     setState(() {
       _userAnswer = answer;
       _isCorrect = isCorrect;
       _state = FlashState.finished;
     });
+    _sessionToken++;
+    _flashTimer?.cancel();
 
     if (isCorrect) {
       _audioService.playSuccessFeedback();
     } else {
-      _audioService.playEncouragementFeedback('Đáp án chính xác là $_expectedAnswer bé nhé!');
+      _audioService.playEncouragementFeedback(
+          'Đáp án chính xác là $_expectedAnswer bé nhé!');
     }
 
     // 1. Lưu bản ghi
@@ -163,8 +185,9 @@ class _FlashAnzanScreenState extends State<FlashAnzanScreen> {
       currentLevel: 3,
     );
 
+    if (!mounted) return;
     setState(() {
-      _flashSpeedMs = decision.recommendedSpeedMs;
+      _flashSpeedMs = decision.recommendedSpeedMs.clamp(500, 1500);
       _adaptiveNote = decision.reason;
     });
   }
@@ -189,7 +212,8 @@ class _FlashAnzanScreenState extends State<FlashAnzanScreen> {
                 children: [
                   // Thẻ tốc độ hiện tại
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     decoration: BoxDecoration(
                       color: AppColors.accentPurple.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(20),
@@ -235,13 +259,16 @@ class _FlashAnzanScreenState extends State<FlashAnzanScreen> {
                   if (_state == FlashState.waitingAnswer) ...[
                     const Text(
                       'Bé hãy đọc to đáp án vào Micro hoặc chọn số:',
-                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                      style:
+                          TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
                     ),
                     const SizedBox(height: 12),
                     VoiceAnswerMicButton(
-                      onAnswerDetected: (answer, raw) => _submitAnswer(answer, method: 'voice'),
+                      onAnswerDetected: (answer, raw) =>
+                          _submitAnswer(answer, method: 'voice'),
                       onHintRequested: (speech) {
-                        _audioService.speak('Gợi ý: Phép tính là ${_numbers.join(", ")}');
+                        _audioService.speak(
+                            'Gợi ý: Phép tính là ${_numbers.join(", ")}');
                       },
                     ),
                     const SizedBox(height: 16),
@@ -252,34 +279,43 @@ class _FlashAnzanScreenState extends State<FlashAnzanScreen> {
                     Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: _isCorrect ? const Color(0xFFE8F7EE) : const Color(0xFFFFF1E8),
+                        color: _isCorrect
+                            ? const Color(0xFFE8F7EE)
+                            : const Color(0xFFFFF1E8),
                         borderRadius: BorderRadius.circular(20),
                         border: Border.all(
-                          color: _isCorrect ? AppColors.success : AppColors.error,
+                          color:
+                              _isCorrect ? AppColors.success : AppColors.error,
                           width: 2,
                         ),
                       ),
                       child: Column(
                         children: [
                           Text(
-                            _isCorrect ? '🎉 HOÀN TOÀN CHÍNH XÁC! 🎉' : 'BÉ CHƯA ĐÚNG RỒI!',
+                            _isCorrect
+                                ? '🎉 HOÀN TOÀN CHÍNH XÁC! 🎉'
+                                : 'BÉ CHƯA ĐÚNG RỒI!',
                             style: TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.w900,
-                              color: _isCorrect ? AppColors.success : AppColors.error,
+                              color: _isCorrect
+                                  ? AppColors.success
+                                  : AppColors.error,
                             ),
                           ),
                           const SizedBox(height: 4),
                           Text(
                             'Đáp án đúng là: $_expectedAnswer (Bé chọn: $_userAnswer)',
-                            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                            style: const TextStyle(
+                                fontSize: 15, fontWeight: FontWeight.bold),
                           ),
                           if (_adaptiveNote.isNotEmpty) ...[
                             const SizedBox(height: 8),
                             Text(
                               '💡 Thích ứng AI: $_adaptiveNote',
                               textAlign: TextAlign.center,
-                              style: const TextStyle(fontSize: 12, color: AppColors.textLight),
+                              style: const TextStyle(
+                                  fontSize: 12, color: AppColors.textLight),
                             ),
                           ],
                         ],
@@ -291,11 +327,14 @@ class _FlashAnzanScreenState extends State<FlashAnzanScreen> {
                         backgroundColor: AppColors.primary,
                         foregroundColor: Colors.white,
                         minimumSize: const Size(double.infinity, 54),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(18)),
                       ),
                       onPressed: _startFlashSession,
                       icon: const Icon(Icons.refresh_rounded),
-                      label: const Text('BÀI TIẾP THEO', style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
+                      label: const Text('BÀI TIẾP THEO',
+                          style: TextStyle(
+                              fontSize: 17, fontWeight: FontWeight.bold)),
                     ),
                   ],
 
@@ -305,11 +344,14 @@ class _FlashAnzanScreenState extends State<FlashAnzanScreen> {
                         backgroundColor: AppColors.accentPurple,
                         foregroundColor: Colors.white,
                         minimumSize: const Size(double.infinity, 56),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(20)),
                       ),
                       onPressed: _startFlashSession,
                       icon: const Icon(Icons.play_arrow_rounded, size: 28),
-                      label: const Text('BẮT ĐẦU CHỚP SỐ ⚡', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900)),
+                      label: const Text('BẮT ĐẦU CHỚP SỐ ⚡',
+                          style: TextStyle(
+                              fontSize: 18, fontWeight: FontWeight.w900)),
                     ),
                 ],
               ),
@@ -329,10 +371,21 @@ class _FlashAnzanScreenState extends State<FlashAnzanScreen> {
           SizedBox(height: 8),
           Text(
             'Nhấn nút để bắt đầu chớp số',
-            style: TextStyle(fontSize: 16, color: AppColors.textLight, fontWeight: FontWeight.w600),
+            style: TextStyle(
+                fontSize: 16,
+                color: AppColors.textLight,
+                fontWeight: FontWeight.w600),
           ),
         ],
       );
+    }
+
+    if (_state == FlashState.countdown) {
+      return Text('$_countdownValue',
+          style: const TextStyle(
+              fontSize: 92,
+              fontWeight: FontWeight.w900,
+              color: AppColors.accentOrange));
     }
 
     if (_state == FlashState.flashing) {
@@ -348,10 +401,15 @@ class _FlashAnzanScreenState extends State<FlashAnzanScreen> {
       );
     }
 
+    if (_state == FlashState.pause) return const SizedBox.shrink();
+
     if (_state == FlashState.waitingAnswer) {
       return const Text(
         '?',
-        style: TextStyle(fontSize: 92, fontWeight: FontWeight.w900, color: AppColors.accentOrange),
+        style: TextStyle(
+            fontSize: 92,
+            fontWeight: FontWeight.w900,
+            color: AppColors.accentOrange),
       );
     }
 
@@ -368,9 +426,12 @@ class _FlashAnzanScreenState extends State<FlashAnzanScreen> {
   Widget _buildQuickAnswerButtons() {
     final opts = <int>{_expectedAnswer};
     final random = Random();
+    for (final offset in [-3, -2, -1, 1, 2, 3]) {
+      final candidate = _expectedAnswer + offset;
+      if (candidate >= 0 && candidate <= 99) opts.add(candidate);
+    }
     while (opts.length < 4) {
-      final fake = (_expectedAnswer + random.nextInt(7) - 3).clamp(0, 18);
-      opts.add(fake);
+      opts.add(random.nextInt(100));
     }
     final list = opts.toList()..shuffle();
 
@@ -383,10 +444,13 @@ class _FlashAnzanScreenState extends State<FlashAnzanScreen> {
             foregroundColor: AppColors.primary,
             elevation: 2,
             minimumSize: const Size(60, 54),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           ),
           onPressed: () => _submitAnswer(n),
-          child: Text('$n', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900)),
+          child: Text('$n',
+              style:
+                  const TextStyle(fontSize: 22, fontWeight: FontWeight.w900)),
         );
       }).toList(),
     );
