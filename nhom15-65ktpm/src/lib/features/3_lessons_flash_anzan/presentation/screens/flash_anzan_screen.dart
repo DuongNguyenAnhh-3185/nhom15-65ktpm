@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:soroban_kids_app/core/constants/app_colors.dart';
 import 'package:soroban_kids_app/core/services/audio_service.dart';
 import 'package:soroban_kids_app/core/services/gamification_service.dart';
@@ -12,7 +13,15 @@ import 'package:soroban_kids_app/features/question_generator/domain/question_gen
 import 'package:soroban_kids_app/injection_container.dart';
 import 'package:soroban_kids_app/shared/entities/attempt_log.dart';
 
-enum FlashState { idle, countdown, flashing, pause, waitingAnswer, finished }
+enum FlashState {
+  idle,
+  countdown,
+  starting,
+  flashing,
+  pause,
+  waitingAnswer,
+  finished,
+}
 
 class FlashAnzanScreen extends StatefulWidget {
   const FlashAnzanScreen({super.key});
@@ -80,7 +89,17 @@ class _FlashAnzanScreenState extends State<FlashAnzanScreen> {
     });
 
     _audioService.speak('Sẵn sàng chớp số nào!');
+    unawaited(_playCountdownCue());
     _runCountdown(token);
+  }
+
+  Future<void> _playCountdownCue() async {
+    try {
+      await SystemSound.play(SystemSoundType.click);
+      await HapticFeedback.selectionClick();
+    } catch (_) {
+      // The browser or device may not provide a system countdown cue.
+    }
   }
 
   void _runCountdown(int token) {
@@ -88,10 +107,15 @@ class _FlashAnzanScreenState extends State<FlashAnzanScreen> {
       if (!mounted || token != _sessionToken) return;
       if (_countdownValue > 1) {
         setState(() => _countdownValue--);
+        unawaited(_playCountdownCue());
         _runCountdown(token);
       } else {
-        setState(() => _state = FlashState.flashing);
-        _showNumber(0, token);
+        setState(() => _state = FlashState.starting);
+        _audioService.speak('Bắt đầu!');
+        _flashTimer = Timer(const Duration(milliseconds: 700), () {
+          if (!mounted || token != _sessionToken) return;
+          _showNumber(0, token);
+        });
       }
     });
   }
@@ -210,6 +234,46 @@ class _FlashAnzanScreenState extends State<FlashAnzanScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
+                  if (_state == FlashState.countdown ||
+                      _state == FlashState.starting) ...[
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 24,
+                        vertical: 10,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.accentOrange.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(22),
+                        border: Border.all(
+                          color: AppColors.accentOrange.withValues(alpha: 0.45),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            _state == FlashState.countdown
+                                ? Icons.timer_rounded
+                                : Icons.play_circle_fill_rounded,
+                            color: AppColors.accentOrange,
+                          ),
+                          const SizedBox(width: 10),
+                          Text(
+                            _state == FlashState.countdown
+                                ? 'SẴN SÀNG: $_countdownValue'
+                                : 'BẮT ĐẦU!',
+                            style: const TextStyle(
+                              color: AppColors.accentOrange,
+                              fontSize: 20,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+
                   // Thẻ tốc độ hiện tại
                   Container(
                     padding:
@@ -331,7 +395,7 @@ class _FlashAnzanScreenState extends State<FlashAnzanScreen> {
                             borderRadius: BorderRadius.circular(18)),
                       ),
                       onPressed: _startFlashSession,
-                      icon: const Icon(Icons.refresh_rounded),
+                      icon: const Icon(Icons.arrow_forward_rounded),
                       label: const Text('BÀI TIẾP THEO',
                           style: TextStyle(
                               fontSize: 17, fontWeight: FontWeight.bold)),
@@ -381,11 +445,34 @@ class _FlashAnzanScreenState extends State<FlashAnzanScreen> {
     }
 
     if (_state == FlashState.countdown) {
-      return Text('$_countdownValue',
-          style: const TextStyle(
-              fontSize: 92,
-              fontWeight: FontWeight.w900,
-              color: AppColors.accentOrange));
+      return const Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.visibility_rounded,
+              size: 56, color: AppColors.accentPurple),
+          SizedBox(height: 12),
+          Text(
+            'Bé chuẩn bị quan sát nhé!',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w800,
+              color: AppColors.textLight,
+            ),
+          ),
+        ],
+      );
+    }
+
+    if (_state == FlashState.starting) {
+      return const Text(
+        'BẮT ĐẦU!',
+        style: TextStyle(
+          fontSize: 38,
+          fontWeight: FontWeight.w900,
+          color: AppColors.accentOrange,
+        ),
+      );
     }
 
     if (_state == FlashState.flashing) {
