@@ -19,7 +19,7 @@ void main() {
               onPressed: () => tapped = true,
               icon: Icons.back_hand_rounded,
               semanticLabel: 'Tập đếm',
-              width: 48,
+              width: 32,
               height: 32,
             ),
           ),
@@ -30,13 +30,54 @@ void main() {
     final size = tester.getSize(find.byType(KidButton));
     expect(size.width, greaterThanOrEqualTo(48));
     expect(size.height, greaterThanOrEqualTo(48));
+    expect(
+      find.ancestor(
+        of: find.byType(AnimatedScale),
+        matching: find.byType(InkWell),
+      ),
+      findsOneWidget,
+    );
 
     final semantics = tester.ensureSemantics();
     expect(find.bySemanticsLabel('Tập đếm'), findsOneWidget);
-    await tester.tap(find.byType(KidButton));
+    final gesture = await tester.startGesture(
+      tester.getCenter(find.byType(KidButton)),
+    );
+    await tester.pump(const Duration(milliseconds: 50));
+    expect(
+        tester.getSize(find.byType(InkWell)).height, greaterThanOrEqualTo(48));
+    await gesture.up();
     await tester.pumpAndSettle();
     expect(tapped, isTrue);
     semantics.dispose();
+  });
+
+  testWidgets('KidButton selects accessible foregrounds for brand colors',
+      (WidgetTester tester) async {
+    for (final backgroundColor in [
+      AppColors.primary,
+      AppColors.secondary,
+      AppColors.accentPurple,
+    ]) {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Center(
+              child: KidButton(
+                onPressed: () {},
+                icon: Icons.play_arrow_rounded,
+                semanticLabel: 'Bắt đầu',
+                backgroundColor: backgroundColor,
+              ),
+            ),
+          ),
+        ),
+      );
+
+      final icon = tester.widget<Icon>(find.byIcon(Icons.play_arrow_rounded));
+      expect(_contrastRatio(backgroundColor, icon.color!),
+          greaterThanOrEqualTo(4.5));
+    }
   });
 
   testWidgets('KidCard supports a tap and content padding',
@@ -55,6 +96,9 @@ void main() {
     );
 
     expect(find.text('⭐'), findsOneWidget);
+    final size = tester.getSize(find.byType(KidCard));
+    expect(size.width, greaterThanOrEqualTo(48));
+    expect(size.height, greaterThanOrEqualTo(48));
     await tester.tap(find.byType(KidCard));
     await tester.pumpAndSettle();
     expect(tapped, isTrue);
@@ -108,14 +152,13 @@ void main() {
       const MaterialApp(
         home: Scaffold(
           body: KidDecoration(
-            icon: Icons.auto_awesome_rounded,
-            color: AppColors.accentPurple,
+            type: KidDecorationType.flower,
           ),
         ),
       ),
     );
 
-    expect(find.byIcon(Icons.auto_awesome_rounded), findsOneWidget);
+    expect(find.byIcon(Icons.local_florist_rounded), findsOneWidget);
     expect(tester.getSize(find.byType(KidDecoration)), const Size(48, 48));
   });
 
@@ -128,7 +171,11 @@ void main() {
       tester.view.devicePixelRatio = previousDevicePixelRatio;
     });
 
-    for (final size in [const Size(320, 640), const Size(1200, 900)]) {
+    for (final size in [
+      const Size(320, 640),
+      const Size(768, 1024),
+      const Size(1200, 900),
+    ]) {
       tester.view.physicalSize = size;
       tester.view.devicePixelRatio = 1;
       await tester.pumpWidget(
@@ -150,8 +197,7 @@ void main() {
                 ),
                 const KidStatusIcon(status: KidStatusType.info),
                 const KidDecoration(
-                  icon: Icons.star_rounded,
-                  color: AppColors.secondary,
+                  type: KidDecorationType.star,
                 ),
               ],
             ),
@@ -162,4 +208,15 @@ void main() {
       expect(tester.takeException(), isNull);
     }
   });
+}
+
+double _contrastRatio(Color first, Color second) {
+  final firstLuminance = first.computeLuminance();
+  final secondLuminance = second.computeLuminance();
+  final lighter =
+      firstLuminance > secondLuminance ? firstLuminance : secondLuminance;
+  final darker =
+      firstLuminance > secondLuminance ? secondLuminance : firstLuminance;
+
+  return (lighter + 0.05) / (darker + 0.05);
 }

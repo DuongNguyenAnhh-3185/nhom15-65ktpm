@@ -8,7 +8,7 @@ class KidButton extends StatefulWidget {
   final String? semanticLabel;
   final IconData? icon;
   final Color backgroundColor;
-  final Color textColor;
+  final Color? textColor;
   final double? width;
   final double height;
 
@@ -19,7 +19,7 @@ class KidButton extends StatefulWidget {
     this.semanticLabel,
     this.icon,
     this.backgroundColor = AppColors.primary,
-    this.textColor = AppColors.onPrimary,
+    this.textColor,
     this.width,
     this.height = AppDimensions.buttonHeight,
   })  : assert(label != null || icon != null),
@@ -38,6 +38,15 @@ class _KidButtonState extends State<KidButton> {
     final height = widget.height < AppDimensions.minTouchSize
         ? AppDimensions.minTouchSize
         : widget.height;
+    final width = widget.width == null
+        ? null
+        : widget.width! < AppDimensions.minTouchSize
+            ? AppDimensions.minTouchSize
+            : widget.width;
+    final foregroundColor = widget.textColor ??
+        (widget.backgroundColor.computeLuminance() > 0.179
+            ? Colors.black
+            : Colors.white);
     final horizontalPadding = widget.label == null ? 0.0 : 20.0;
 
     return Semantics(
@@ -45,39 +54,39 @@ class _KidButtonState extends State<KidButton> {
       button: true,
       onTap: widget.onPressed,
       child: ExcludeSemantics(
-        child: AnimatedScale(
-          scale: _scale,
-          duration: const Duration(milliseconds: 100),
-          child: Material(
-            color: widget.backgroundColor,
-            elevation: 3,
+        child: Material(
+          color: widget.backgroundColor,
+          elevation: 3,
+          borderRadius: borderRadius,
+          child: InkWell(
+            onTap: widget.onPressed,
+            onTapDown: (_) => setState(() => _scale = 0.94),
+            onTapUp: (_) => setState(() => _scale = 1.0),
+            onTapCancel: () => setState(() => _scale = 1.0),
             borderRadius: borderRadius,
-            child: InkWell(
-              onTap: widget.onPressed,
-              onTapDown: (_) => setState(() => _scale = 0.94),
-              onTapUp: (_) => setState(() => _scale = 1.0),
-              onTapCancel: () => setState(() => _scale = 1.0),
-              borderRadius: borderRadius,
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(
-                  minWidth: AppDimensions.minTouchSize,
-                  minHeight: AppDimensions.minTouchSize,
-                ),
-                child: SizedBox(
-                  width: widget.width,
-                  height: height,
-                  child: Padding(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: horizontalPadding,
-                    ),
-                    child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(
+                minWidth: AppDimensions.minTouchSize,
+                minHeight: AppDimensions.minTouchSize,
+              ),
+              child: SizedBox(
+                width: width,
+                height: height,
+                child: Padding(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: horizontalPadding,
+                  ),
+                  child: Center(
+                    child: AnimatedScale(
+                      scale: _scale,
+                      duration: const Duration(milliseconds: 100),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           if (widget.icon != null)
                             Icon(
                               widget.icon,
-                              color: widget.textColor,
+                              color: foregroundColor,
                               size: 28,
                             ),
                           if (widget.icon != null && widget.label != null)
@@ -92,7 +101,7 @@ class _KidButtonState extends State<KidButton> {
                                     .textTheme
                                     .labelLarge
                                     ?.copyWith(
-                                      color: widget.textColor,
+                                      color: foregroundColor,
                                       fontSize: 20,
                                       fontWeight: FontWeight.w800,
                                     ),
