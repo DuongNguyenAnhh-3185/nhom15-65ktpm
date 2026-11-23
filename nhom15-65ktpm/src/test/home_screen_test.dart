@@ -8,6 +8,7 @@ import 'package:soroban_kids_app/core/services/storage_service.dart';
 import 'package:soroban_kids_app/features/2_gamification_parent/presentation/screens/home_screen.dart';
 import 'package:soroban_kids_app/injection_container.dart';
 import 'package:soroban_kids_app/shared/widgets/kid_card.dart';
+import 'package:soroban_kids_app/shared/widgets/panda_mascot.dart';
 
 class _TestAudioService implements AudioService {
   @override
@@ -72,6 +73,37 @@ void main() {
       expect(find.text('Chào bé Linh!'), findsOneWidget);
       expect(find.text('8 ngày'), findsOneWidget);
       expect(find.byType(KidCard), findsNWidgets(5));
+      expect(find.byType(PandaMascot), findsOneWidget);
+      expect(find.text('Tập đếm'), findsOneWidget);
+      expect(find.text('Luyện tập'), findsOneWidget);
+      expect(find.text('Flash Anzan'), findsOneWidget);
+      expect(find.text('Phụ huynh'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    }
+  });
+
+  testWidgets('practice action offers both existing lesson levels',
+      (WidgetTester tester) async {
+    await tester.pumpWidget(const MaterialApp(home: HomeScreen()));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Luyện tập'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Toán cơ bản'), findsOneWidget);
+    expect(find.text('Công thức'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Panda expressions render without requiring image assets',
+      (WidgetTester tester) async {
+    for (final expression in PandaExpression.values) {
+      await tester.pumpWidget(
+        MaterialApp(home: PandaMascot(expression: expression)),
+      );
+      expect(find.byType(PandaMascot), findsOneWidget);
+      expect(find.byType(CustomPaint), findsWidgets);
+      expect(find.byType(Image), findsNothing);
       expect(tester.takeException(), isNull);
     }
   });

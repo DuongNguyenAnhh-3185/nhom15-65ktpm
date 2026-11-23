@@ -141,20 +141,6 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          const KidDecoration(type: KidDecorationType.star),
-                          KidButton(
-                            onPressed: _openParentDashboard,
-                            icon: Icons.settings_rounded,
-                            semanticLabel: 'Khu vực phụ huynh',
-                            backgroundColor: AppColors.cardBg,
-                            width: 52,
-                            height: 52,
-                          ),
-                        ],
-                      ),
                       const SizedBox(height: 8),
                       Center(
                         child: SizedBox(
@@ -207,26 +193,26 @@ class _HomeScreenState extends State<HomeScreen> {
                             onTap: _openFreePlayModal,
                           ),
                           _buildFeatureCard(
-                            label: 'Toán cơ bản',
-                            semanticLabel: 'Luyện toán cơ bản cấp độ 1',
+                            label: 'Luyện tập',
+                            semanticLabel:
+                                'Chọn bài luyện toán cơ bản hoặc công thức',
                             icon: Icons.calculate_rounded,
                             color: AppColors.primary,
-                            onTap: () => _openLesson(1),
+                            onTap: _openPracticeOptions,
                           ),
                           _buildFeatureCard(
-                            label: 'Công thức',
-                            semanticLabel:
-                                'Luyện công thức Anh bạn nhỏ và Anh bạn lớn',
-                            icon: Icons.swap_horiz_rounded,
-                            color: AppColors.accentPurple,
-                            onTap: () => _openLesson(2),
-                          ),
-                          _buildFeatureCard(
-                            label: 'Chớp số',
+                            label: 'Flash Anzan',
                             semanticLabel: 'Luyện tính nhẩm Flash Anzan',
                             icon: Icons.bolt_rounded,
-                            color: AppColors.success,
+                            color: AppColors.accentPurple,
                             onTap: _openFlashAnzan,
+                          ),
+                          _buildFeatureCard(
+                            label: 'Phụ huynh',
+                            semanticLabel: 'Mở cổng phụ huynh',
+                            icon: Icons.family_restroom_rounded,
+                            color: AppColors.success,
+                            onTap: _openParentDashboard,
                           ),
                         ],
                       ),
@@ -405,6 +391,63 @@ class _HomeScreenState extends State<HomeScreen> {
             builder: (_) => const ParentDashboardScreen(),
           ),
         ).then((_) => _loadProfile());
+      },
+    );
+  }
+
+  void _openPracticeOptions() {
+    showModalBottomSheet<void>(
+      context: context,
+      useSafeArea: true,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) {
+        return Container(
+          padding: const EdgeInsets.all(20),
+          decoration: const BoxDecoration(
+            color: AppColors.cardBg,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Center(
+                child: Container(
+                  width: 48,
+                  height: 6,
+                  decoration: BoxDecoration(
+                    color: AppColors.outline,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              KidButton(
+                onPressed: () {
+                  Navigator.pop(sheetContext);
+                  _openLesson(1);
+                },
+                icon: Icons.looks_one_rounded,
+                label: 'Toán cơ bản',
+                semanticLabel: 'Bắt đầu luyện toán cơ bản',
+                backgroundColor: AppColors.secondary,
+              ),
+              const SizedBox(height: 12),
+              KidButton(
+                onPressed: () {
+                  Navigator.pop(sheetContext);
+                  _openLesson(2);
+                },
+                icon: Icons.swap_horiz_rounded,
+                label: 'Công thức',
+                semanticLabel: 'Bắt đầu luyện công thức',
+                backgroundColor: AppColors.accentPurple,
+              ),
+              const SizedBox(height: 8),
+            ],
+          ),
+        );
       },
     );
   }
