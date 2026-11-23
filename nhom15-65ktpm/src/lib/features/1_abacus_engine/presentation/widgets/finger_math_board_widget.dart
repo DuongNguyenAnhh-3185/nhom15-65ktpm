@@ -104,7 +104,8 @@ class _FingerMathBoardWidgetState extends State<FingerMathBoardWidget> {
                         return Container(
                           padding: const EdgeInsets.all(16),
                           color: Colors.orange.shade50,
-                          child: const Text('Hình ảnh Flashcard 1D chuẩn KiddiMath'),
+                          child: const Text(
+                              'Hình ảnh Flashcard 1D chuẩn KiddiMath'),
                         );
                       },
                     ),
@@ -151,7 +152,8 @@ class _FingerMathBoardWidgetState extends State<FingerMathBoardWidget> {
                   const SizedBox(height: 6),
                   _buildRuleCard(
                     title: '🤝 Cặp bạn nhỏ: (4-1), (3-2), (2-3), (1-4)',
-                    content: 'Dùng khi cộng/trừ trong phạm vi 5 trên cùng 1 bàn tay:\n'
+                    content:
+                        'Dùng khi cộng/trừ trong phạm vi 5 trên cùng 1 bàn tay:\n'
                         '• +4 = +5 - 1 | +3 = +5 - 2 | +2 = +5 - 3 | +1 = +5 - 4\n'
                         '• -4 = -5 + 1 | -3 = -5 + 2 | -2 = -5 + 3 | -1 = -5 + 4\n'
                         'Thao tác: Thêm ngón cái 5, gập bớt ngón bạn nhỏ tương ứng.',
@@ -169,7 +171,8 @@ class _FingerMathBoardWidgetState extends State<FingerMathBoardWidget> {
                   const SizedBox(height: 6),
                   _buildRuleCard(
                     title: '🌟 Cặp bạn lớn: (9-1), (8-2), (7-3), (6-4), (5-5)',
-                    content: 'Dùng khi cộng qua 10 hoặc trừ qua 10 (phối hợp 2 tay):\n'
+                    content:
+                        'Dùng khi cộng qua 10 hoặc trừ qua 10 (phối hợp 2 tay):\n'
                         '• Phép cộng (+): Bung 1 ngón Tay Trái (+10), gập bạn lớn ở Tay Phải (- bạn lớn)\n'
                         '  Ví dụ: +9 = +10 (Tay Trái) - 1 (Tay Phải)\n'
                         '  Ví dụ: +8 = +10 (Tay Trái) - 2 (Tay Phải)\n'
@@ -297,7 +300,8 @@ class _FingerMathBoardWidgetState extends State<FingerMathBoardWidget> {
                   Positioned(
                     bottom: 2,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 2),
                       decoration: BoxDecoration(
                         color: Colors.black.withOpacity(0.7),
                         borderRadius: BorderRadius.circular(12),
@@ -331,21 +335,27 @@ class _FingerMathBoardWidgetState extends State<FingerMathBoardWidget> {
                 onTap: () => _setDigit(handType, idx),
                 child: Container(
                   margin: const EdgeInsets.symmetric(horizontal: 2),
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                   decoration: BoxDecoration(
                     color: isSelected
-                        ? (isRight ? AppColors.secondary : AppColors.accentOrange)
+                        ? (isRight
+                            ? AppColors.secondary
+                            : AppColors.accentOrange)
                         : Colors.grey.shade100,
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(
-                      color: isSelected ? Colors.transparent : Colors.grey.shade300,
+                      color: isSelected
+                          ? Colors.transparent
+                          : Colors.grey.shade300,
                     ),
                   ),
                   child: Text(
                     label,
                     style: TextStyle(
                       fontSize: 11,
-                      fontWeight: isSelected ? FontWeight.w900 : FontWeight.w600,
+                      fontWeight:
+                          isSelected ? FontWeight.w900 : FontWeight.w600,
                       color: isSelected ? Colors.white : AppColors.textDark,
                     ),
                   ),
@@ -372,88 +382,113 @@ class _FingerMathBoardWidgetState extends State<FingerMathBoardWidget> {
           children: [
             // Thanh hiển thị giá trị số & quy ước ngón tay
             if (widget.showLiveValue)
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppColors.secondary.withOpacity(0.12),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: AppColors.secondary.withOpacity(0.3),
-                        ),
-                      ),
-                      child: Row(
-                        children: [
-                          const Text(
-                            'Số: ',
-                            style: TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.textDark,
-                            ),
-                          ),
-                          Text(
-                            '$totalVal',
-                            style: const TextStyle(
-                              fontSize: 22,
-                              fontWeight: FontWeight.w900,
-                              color: AppColors.primary,
-                            ),
-                          ),
-                          const SizedBox(width: 6),
-                          Text(
-                            '(${rightHand.shortNotation})',
-                            style: const TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.secondary,
-                            ),
-                          ),
-                        ],
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final valueSummary = Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppColors.secondary.withOpacity(0.12),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: AppColors.secondary.withOpacity(0.3),
                       ),
                     ),
-                    Row(
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        IconButton(
-                          tooltip: 'Xem Flashcard 1D & công thức',
-                          onPressed: () => _showFormulaGuideModal(context),
-                          icon: const Icon(
-                            Icons.help_outline_rounded,
-                            color: AppColors.primary,
-                            size: 22,
+                        const Text(
+                          'Số: ',
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.textDark,
                           ),
                         ),
-                        ElevatedButton.icon(
-                          onPressed: () {
-                            _audioService.playBeadClick();
-                            widget.controller.reset();
-                          },
-                          icon: const Icon(Icons.front_hand, size: 16),
-                          label: const Text('Nắm tay (0)'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.accentOrange,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 10,
-                              vertical: 6,
-                            ),
-                            textStyle: const TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w800,
-                            ),
+                        Text(
+                          '$totalVal',
+                          style: const TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.w900,
+                            color: AppColors.primary,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          '(${rightHand.shortNotation})',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.secondary,
                           ),
                         ),
                       ],
                     ),
-                  ],
-                ),
+                  );
+                  final actions = Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        tooltip: 'Xem Flashcard 1D & công thức',
+                        onPressed: () => _showFormulaGuideModal(context),
+                        icon: const Icon(
+                          Icons.help_outline_rounded,
+                          color: AppColors.primary,
+                          size: 22,
+                        ),
+                      ),
+                      ElevatedButton.icon(
+                        onPressed: () {
+                          _audioService.playBeadClick();
+                          widget.controller.reset();
+                        },
+                        icon: const Icon(Icons.front_hand, size: 16),
+                        label: const Text('Nắm tay (0)'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.accentOrange,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 6,
+                          ),
+                          textStyle: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                    ],
+                  );
+
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 6,
+                    ),
+                    child: constraints.maxWidth < 420
+                        ? Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              Align(
+                                alignment: Alignment.centerLeft,
+                                child: valueSummary,
+                              ),
+                              Align(
+                                alignment: Alignment.centerRight,
+                                child: actions,
+                              ),
+                            ],
+                          )
+                        : Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [valueSummary, actions],
+                          ),
+                  );
+                },
               ),
 
             // Khu vực hiển thị 2 bàn tay tương tác Flashcard

@@ -1,18 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../../../core/constants/app_colors.dart';
+import '../../../../core/constants/app_dimensions.dart';
 import '../../../../core/services/audio_service.dart';
 import '../../../../core/services/reminder_service.dart';
 import '../../../../core/services/storage_service.dart';
 import '../../../../injection_container.dart';
 import '../../../../shared/entities/child_profile.dart';
-import '../../../../shared/widgets/kid_button.dart';
-import '../../../../shared/widgets/kid_card.dart';
-import '../../../../shared/widgets/kid_decoration.dart';
-import '../../../../shared/widgets/kid_status_banner.dart';
-import '../../../../shared/widgets/kid_status_icon.dart';
 import '../../../../shared/widgets/mascot_bubble.dart';
-import '../../../../shared/widgets/panda_mascot.dart';
 import 'package:soroban_kids_app/features/1_abacus_engine/presentation/controllers/finger_math_controller.dart';
 import 'package:soroban_kids_app/features/1_abacus_engine/presentation/widgets/finger_math_board_widget.dart';
 import 'package:soroban_kids_app/features/3_lessons_flash_anzan/presentation/screens/flash_anzan_screen.dart';
@@ -64,7 +59,7 @@ class _HomeScreenState extends State<HomeScreen> {
       backgroundColor: Colors.transparent,
       builder: (context) {
         return Container(
-          height: MediaQuery.of(context).size.height * 0.82,
+          height: MediaQuery.of(context).size.height * 0.75,
           decoration: const BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.only(
@@ -72,7 +67,7 @@ class _HomeScreenState extends State<HomeScreen> {
               topRight: Radius.circular(32),
             ),
           ),
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          padding: const EdgeInsets.all(20),
           child: Column(
             children: [
               Container(
@@ -83,368 +78,386 @@ class _HomeScreenState extends State<HomeScreen> {
                   borderRadius: BorderRadius.circular(10),
                 ),
               ),
-              const SizedBox(height: 10),
-              const Text('✋', style: TextStyle(fontSize: 36)),
-              const SizedBox(height: 8),
+              const SizedBox(height: 12),
+              const Text('✋', style: TextStyle(fontSize: 40)),
+              const SizedBox(height: 12),
               Expanded(
-                child: SingleChildScrollView(
-                  child: FingerMathBoardWidget(
-                    controller: fingerController,
-                    height: 220,
-                    showLiveValue: true,
-                  ),
+                child: FingerMathBoardWidget(
+                  controller: fingerController,
+                  height: 230,
+                  showLiveValue: true,
                 ),
               ),
               const SizedBox(height: 8),
-              KidButton(
+              ElevatedButton.icon(
                 onPressed: () {
                   HapticFeedback.selectionClick();
                   _audioService.speak(fingerController.speechDescription);
                 },
-                icon: Icons.volume_up_rounded,
-                label: 'Nghe số',
-                semanticLabel: 'Nghe phát âm số ngón tay',
-                backgroundColor: AppColors.secondary,
+                icon: const Icon(Icons.volume_up_rounded, size: 28),
+                label: const Text(''),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.secondary,
+                  foregroundColor: AppColors.textDark,
+                  minimumSize: const Size(
+                    AppDimensions.minTouchSize,
+                    AppDimensions.buttonHeight,
+                  ),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 12,
+                  ),
+                ),
               ),
             ],
           ),
         );
       },
-    ).then((_) => _loadProfile());
-  }
-
-  /// Biểu cảm Panda dựa trên chuỗi Streak hiện tại.
-  PandaExpression get _pandaExpression {
-    final streak = _profile?.streakCount ?? 0;
-    if (streak >= 7) return PandaExpression.celebrating;
-    if (streak >= 3) return PandaExpression.encouraging;
-    return PandaExpression.happy;
-  }
-
-  /// Lời chào động theo tên bé và chuỗi Streak.
-  String get _greetingText {
-    final name = _profile?.name;
-    final streak = _profile?.streakCount ?? 0;
-    final greeting = name != null && name.isNotEmpty
-        ? 'Chào bé $name!'
-        : 'Chào bé!';
-    if (streak >= 7) {
-      return '$greeting Tuyệt vời! $streak ngày liên tiếp rồi! 🎉';
-    } else if (streak >= 3) {
-      return '$greeting Giỏi lắm! $streak ngày liên tiếp! 🔥';
-    }
-    return '$greeting Hôm nay mình cùng chơi toán nhé!';
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: SafeArea(
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final isTablet = constraints.maxWidth >= 640;
-            final horizontalPadding = constraints.maxWidth < 360 ? 12.0 : 20.0;
-            final mascotWidth =
-                constraints.maxWidth < 352 ? constraints.maxWidth - 32 : 320.0;
-
-            return SingleChildScrollView(
-              padding: EdgeInsets.symmetric(
-                horizontal: horizontalPadding,
-                vertical: 16,
-              ),
-              child: Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 1000),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      const SizedBox(height: 8),
-                      Center(
-                        child: SizedBox(
-                          width: mascotWidth,
-                          child: MascotBubbleWidget(
-                            speechText: _greetingText,
-                            expression: _pandaExpression,
-                            onMascotTap: () {
-                              _audioService.speak(_greetingText);
-                            },
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Thanh tiêu đề trên cùng
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppColors.accentOrange.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: AppColors.accentOrange.withValues(alpha: 0.4),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        const Text('🔥', style: TextStyle(fontSize: 20)),
+                        const SizedBox(width: 6),
+                        Text(
+                          '${_profile?.streakCount ?? 3} Ngày',
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.accentOrange,
                           ),
                         ),
-                      ),
-                      const SizedBox(height: 12),
-                      Text(
-                        _profile == null
-                            ? 'Chào bé!'
-                            : 'Chào bé ${_profile!.name}!',
-                        textAlign: TextAlign.center,
-                        style: Theme.of(context).textTheme.headlineLarge,
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        _profile == null
-                            ? 'Hôm nay mình cùng chơi toán nhé!'
-                            : (_profile!.streakCount >= 7
-                                ? 'Tuyệt vời! ${_profile!.streakCount} ngày liên tiếp rồi! 🎉'
-                                : _profile!.streakCount >= 3
-                                    ? 'Giỏi lắm! ${_profile!.streakCount} ngày liên tiếp! 🔥'
-                                    : 'Hôm nay mình cùng chơi toán nhé!'),
-                        textAlign: TextAlign.center,
-                        style: Theme.of(context).textTheme.bodyLarge,
-                      ),
-                      const SizedBox(height: 20),
-                      _buildStreakCard(context),
-                      if (_showReminderBanner) ...[
-                        const SizedBox(height: 12),
-                        _buildReminderBanner(),
                       ],
-                      const SizedBox(height: 24),
-                      GridView.count(
-                        crossAxisCount: isTablet ? 4 : 2,
-                        crossAxisSpacing: 12,
-                        mainAxisSpacing: 12,
-                        childAspectRatio: isTablet ? 1.15 : 0.92,
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        children: [
-                          _buildFeatureCard(
-                            label: 'Tập đếm',
-                            semanticLabel: 'Tập đếm ngón tay tự do',
-                            icon: Icons.back_hand_rounded,
-                            color: AppColors.secondary,
-                            onTap: _openFreePlayModal,
-                          ),
-                          _buildFeatureCard(
-                            label: 'Luyện tập',
-                            semanticLabel:
-                                'Chọn bài luyện toán cơ bản hoặc công thức',
-                            icon: Icons.calculate_rounded,
-                            color: AppColors.primary,
-                            onTap: _openPracticeOptions,
-                          ),
-                          _buildFeatureCard(
-                            label: 'Flash Anzan',
-                            semanticLabel: 'Luyện tính nhẩm Flash Anzan',
-                            icon: Icons.bolt_rounded,
-                            color: AppColors.accentPurple,
-                            onTap: _openFlashAnzan,
-                          ),
-                          _buildFeatureCard(
-                            label: 'Phụ huynh',
-                            semanticLabel: 'Mở cổng phụ huynh',
-                            icon: Icons.family_restroom_rounded,
-                            color: AppColors.success,
-                            onTap: _openParentDashboard,
+                    ),
+                  ),
+
+                  // Nút Cổng Phụ Huynh (Parental Gate)
+                  IconButton(
+                    tooltip: 'Phụ huynh',
+                    constraints: const BoxConstraints(
+                      minWidth: AppDimensions.minTouchSize,
+                      minHeight: AppDimensions.minTouchSize,
+                    ),
+                    onPressed: () {
+                      ParentalGateDialog.show(
+                        context,
+                        onPass: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const ParentDashboardScreen(),
+                            ),
+                          ).then((_) => _loadProfile());
+                        },
+                      );
+                    },
+                    icon: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.08),
+                            blurRadius: 8,
                           ),
                         ],
                       ),
-                    ],
+                      child: const Icon(
+                        Icons.settings,
+                        color: AppColors.textLight,
+                        size: 26,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              if (_showReminderBanner) ...[
+                const SizedBox(height: 12),
+                _buildReminderBanner(),
+                const SizedBox(height: 12),
+              ] else
+                const SizedBox(height: 16),
+
+              // Linh vật hoạt hình Mascot
+              MascotBubbleWidget(
+                speechText:
+                    'Hôm nay bé muốn đếm ngón tay Finger Math hay thi đấu tính nhẩm nhanh nè?',
+                onMascotTap: () {
+                  _audioService.speak(
+                    'Hôm nay bé muốn đếm ngón tay Finger Math hay thi đấu tính nhẩm nhanh nè?',
+                  );
+                },
+              ),
+              const SizedBox(height: 24),
+
+              // Danh sách 3 Cấp độ học tập dạng thẻ to rực rỡ
+              _buildLevelCard(
+                title: 'CẤP ĐỘ 1: FINGER MATH CƠ BẢN',
+                subtitle:
+                    'Đếm ngón 0-9: Tay Phải hàng đơn vị, Tay Trái hàng chục',
+                color: AppColors.secondary,
+                emoji: '✌️',
+                badgeText: 'Cơ Bản',
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const LessonPlayScreen(level: 1),
+                    ),
+                  ).then((_) => _loadProfile());
+                },
+              ),
+              const SizedBox(height: 16),
+
+              _buildLevelCard(
+                title: 'CẤP ĐỘ 2: ANH BẠN NHỎ & ANH BẠN LỚN',
+                subtitle:
+                    'Công thức xòe/gập ngón tay: +4 = +5 - 1, +9 = +10 - 1',
+                color: AppColors.primary,
+                emoji: '👍',
+                badgeText: 'Công Thức',
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const LessonPlayScreen(level: 2),
+                    ),
+                  ).then((_) => _loadProfile());
+                },
+              ),
+              const SizedBox(height: 16),
+
+              _buildLevelCard(
+                title: 'CẤP ĐỘ 3: FLASH ANZAN FINGER MATH',
+                subtitle: 'Tính nhẩm nhanh siêu tốc bằng 2 bàn tay (0 - 99)',
+                color: AppColors.accentPurple,
+                emoji: '⚡',
+                badgeText: 'Siêu Tốc',
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const FlashAnzanScreen(),
+                    ),
+                  ).then((_) => _loadProfile());
+                },
+              ),
+              const SizedBox(height: 20),
+
+              // Nút Bàn tay Finger Math tự do
+              OutlinedButton.icon(
+                onPressed: _openFreePlayModal,
+                icon: const Icon(Icons.front_hand, size: 26),
+                label: const Text('BÀN TAY FINGER MATH (CHƠI TỰ DO) ✋'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.textDark,
+                  side: const BorderSide(color: AppColors.primary, width: 2),
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  textStyle: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
                   ),
                 ),
               ),
-            );
-          },
+            ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildStreakCard(BuildContext context) {
-    final streakCount = _profile?.streakCount;
-    return KidCard(
-      color: Theme.of(context).colorScheme.secondaryContainer,
-      semanticLabel: streakCount == null
-          ? 'Đang tải chuỗi ngày học'
-          : 'Chuỗi ngày học: $streakCount ngày',
+  Widget _buildReminderBanner() {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.accentOrange.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(20),
+        border:
+            Border.all(color: AppColors.accentOrange.withValues(alpha: 0.5)),
+      ),
       child: Row(
         children: [
-          Container(
-            width: 56,
-            height: 56,
-            decoration: const BoxDecoration(
-              color: AppColors.accentYellow,
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(
-              Icons.local_fire_department_rounded,
-              color: AppColors.primary,
-              size: 34,
-            ),
-          ),
-          const SizedBox(width: 14),
+          const Text('⏰', style: TextStyle(fontSize: 26)),
+          const SizedBox(width: 10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'Chuỗi ngày học',
-                  style: Theme.of(context).textTheme.bodyMedium,
+                const Text(
+                  'Đã 19:00 rồi! Giờ luyện tập Finger Math!',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                    color: AppColors.accentOrange,
+                  ),
                 ),
                 const SizedBox(height: 2),
-                Text(
-                  streakCount == null ? 'Đang tải…' : '$streakCount ngày',
-                  style: Theme.of(context).textTheme.titleLarge,
+                const Text(
+                  'Cùng luyện tập để giữ ngọn lửa chuỗi Streak nhé bé ơi! 🔥',
+                  style: TextStyle(fontSize: 12, color: AppColors.textDark),
+                ),
+                const SizedBox(height: 6),
+                InkWell(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const LessonPlayScreen(level: 1),
+                      ),
+                    ).then((_) => _loadProfile());
+                  },
+                  child: const Text(
+                    '👉 Bắt đầu ngay!',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                      color: AppColors.primary,
+                      decoration: TextDecoration.underline,
+                    ),
+                  ),
                 ),
               ],
             ),
           ),
-          const KidDecoration(
-            type: KidDecorationType.star,
-            size: 32,
+          IconButton(
+            icon: const Icon(Icons.close, size: 18, color: AppColors.textLight),
+            onPressed: () => setState(() => _showReminderBanner = false),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildReminderBanner() {
-    return KidStatusBanner(
-      status: KidStatusType.warning,
-      iconEmoji: '⏰',
-      title: 'Đã 19:00 rồi! Giờ luyện tập Finger Math!',
-      subtitle: 'Cùng luyện tập để giữ ngọn lửa chuỗi Streak nhé bé ơi! 🔥',
-      actionLabel: '👉 Bắt đầu ngay!',
-      onAction: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => const LessonPlayScreen(level: 1),
-          ),
-        ).then((_) => _loadProfile());
-      },
-      onDismiss: () => setState(() => _showReminderBanner = false),
-      margin: const EdgeInsets.only(bottom: 8),
-    );
-  }
-
-  Widget _buildFeatureCard({
-    required String label,
-    required String semanticLabel,
-    required IconData icon,
+  Widget _buildLevelCard({
+    required String title,
+    required String subtitle,
     required Color color,
+    required String emoji,
+    required String badgeText,
     required VoidCallback onTap,
   }) {
-    return KidCard(
-      onTap: () {
-        HapticFeedback.selectionClick();
-        onTap();
-      },
-      semanticLabel: semanticLabel,
-      color: AppColors.cardBg,
-      padding: const EdgeInsets.all(12),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            width: 64,
-            height: 64,
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.16),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(icon, size: 38, color: color),
-          ),
-          const SizedBox(height: 10),
-          Text(
-            label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontSize: 16,
-                  color: AppColors.textDark,
-                ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _openParentDashboard() {
-    ParentalGateDialog.show(
-      context,
-      onPass: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => const ParentDashboardScreen(),
-          ),
-        ).then((_) => _loadProfile());
-      },
-    );
-  }
-
-  void _openPracticeOptions() {
-    showModalBottomSheet<void>(
-      context: context,
-      useSafeArea: true,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (sheetContext) {
-        return Container(
+    return Semantics(
+      label: '$title. $subtitle. $badgeText',
+      button: true,
+      child: GestureDetector(
+        onTap: () {
+          HapticFeedback.selectionClick();
+          onTap();
+        },
+        child: Container(
           padding: const EdgeInsets.all(20),
-          decoration: const BoxDecoration(
-            color: AppColors.cardBg,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Center(
-                child: Container(
-                  width: 48,
-                  height: 6,
-                  decoration: BoxDecoration(
-                    color: AppColors.outline,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: BorderRadius.circular(28),
+            boxShadow: [
+              BoxShadow(
+                color: color.withValues(alpha: 0.35),
+                blurRadius: 14,
+                offset: const Offset(0, 6),
               ),
-              const SizedBox(height: 20),
-              KidButton(
-                onPressed: () {
-                  Navigator.pop(sheetContext);
-                  _openLesson(1);
-                },
-                icon: Icons.looks_one_rounded,
-                label: 'Toán cơ bản',
-                semanticLabel: 'Bắt đầu luyện toán cơ bản',
-                backgroundColor: AppColors.secondary,
-              ),
-              const SizedBox(height: 12),
-              KidButton(
-                onPressed: () {
-                  Navigator.pop(sheetContext);
-                  _openLesson(2);
-                },
-                icon: Icons.swap_horiz_rounded,
-                label: 'Công thức',
-                semanticLabel: 'Bắt đầu luyện công thức',
-                backgroundColor: AppColors.accentPurple,
-              ),
-              const SizedBox(height: 8),
             ],
           ),
-        );
-      },
+          child: Row(
+            children: [
+              Container(
+                width: 68,
+                height: 68,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.25),
+                  shape: BoxShape.circle,
+                ),
+                child: Center(
+                  child: Text(emoji, style: const TextStyle(fontSize: 34)),
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            badgeText,
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w800,
+                              color: color,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w900,
+                        color: Colors.white,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Colors.white.withValues(alpha: 0.9),
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(
+                Icons.arrow_forward_ios_rounded,
+                color: Colors.white,
+                size: 20,
+              ),
+            ],
+          ),
+        ),
+      ),
     );
-  }
-
-  void _openLesson(int level) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => LessonPlayScreen(level: level),
-      ),
-    ).then((_) => _loadProfile());
-  }
-
-  void _openFlashAnzan() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => const FlashAnzanScreen(),
-      ),
-    ).then((_) => _loadProfile());
   }
 }
