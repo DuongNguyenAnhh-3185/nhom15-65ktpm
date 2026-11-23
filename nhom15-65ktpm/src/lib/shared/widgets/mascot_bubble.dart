@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_dimensions.dart';
 import 'panda_mascot.dart';
@@ -19,33 +20,52 @@ class MascotBubbleWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Semantics(
           label: 'Linh vật Panda',
-          button: true,
-          child: GestureDetector(
-            onTap: onMascotTap,
-            child: Container(
-              width: 84,
-              height: 84,
-              decoration: BoxDecoration(
-                color: AppColors.accentYellow,
-                shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                    color: AppColors.accentYellow.withValues(alpha: 0.4),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
+          button: onMascotTap != null,
+          child: Material(
+            color: AppColors.accentYellow,
+            elevation: 3,
+            shape: const CircleBorder(),
+            clipBehavior: Clip.antiAlias,
+            child: InkWell(
+              customBorder: const CircleBorder(),
+              onTap: onMascotTap == null
+                  ? null
+                  : () {
+                      HapticFeedback.selectionClick();
+                      onMascotTap!();
+                    },
+              child: SizedBox(
+                width: 84,
+                height: 84,
+                child: Center(
+                  child: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 320),
+                    switchInCurve: Curves.easeOutCubic,
+                    switchOutCurve: Curves.easeIn,
+                    transitionBuilder: (child, animation) {
+                      return FadeTransition(
+                        opacity: animation,
+                        child: ScaleTransition(
+                          scale: Tween<double>(begin: 0.82, end: 1)
+                              .animate(animation),
+                          child: child,
+                        ),
+                      );
+                    },
+                    child: PandaMascot(
+                      key: ValueKey(expression),
+                      expression: expression,
+                      image: expressionImages[expression],
+                      size: 72,
+                    ),
                   ),
-                ],
-              ),
-              child: Center(
-                child: PandaMascot(
-                  expression: expression,
-                  image: expressionImages[expression],
-                  size: 72,
                 ),
               ),
             ),
@@ -59,7 +79,7 @@ class MascotBubbleWidget extends StatelessWidget {
             ),
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: AppColors.accentPurple,
+              color: colorScheme.tertiary,
               borderRadius: const BorderRadius.only(
                 topLeft: Radius.circular(20),
                 topRight: Radius.circular(20),
@@ -69,7 +89,10 @@ class MascotBubbleWidget extends StatelessWidget {
             ),
             child: Text(
               speechText,
-              style: const TextStyle(fontSize: 16, color: Colors.white),
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: colorScheme.onTertiary,
+                    fontWeight: FontWeight.w700,
+                  ),
               textAlign: TextAlign.start,
             ),
           ),

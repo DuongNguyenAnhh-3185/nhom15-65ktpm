@@ -12,6 +12,7 @@ import 'package:soroban_kids_app/features/3_lessons_flash_anzan/presentation/scr
 import 'package:soroban_kids_app/features/2_gamification_parent/presentation/screens/home_screen.dart';
 import 'package:soroban_kids_app/injection_container.dart';
 import 'package:soroban_kids_app/shared/widgets/kid_card.dart';
+import 'package:soroban_kids_app/shared/widgets/mascot_bubble.dart';
 import 'package:soroban_kids_app/shared/widgets/panda_mascot.dart';
 
 class _TestAudioService implements AudioService {
@@ -63,6 +64,7 @@ void main() {
     });
 
     for (final size in [
+      const Size(280, 480),
       const Size(320, 640),
       const Size(640, 800),
       const Size(768, 1024),
@@ -182,5 +184,53 @@ void main() {
       expect(find.byType(Image), findsNothing);
       expect(tester.takeException(), isNull);
     }
+  });
+
+  testWidgets('Panda expression changes animate between existing expressions',
+      (WidgetTester tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: MascotBubbleWidget(
+          speechText: 'Chào bé!',
+          expression: PandaExpression.happy,
+        ),
+      ),
+    );
+
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: MascotBubbleWidget(
+          speechText: 'Cùng cố gắng nhé!',
+          expression: PandaExpression.encouraging,
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.byType(AnimatedSwitcher), findsOneWidget);
+    expect(find.byType(PandaMascot), findsNWidgets(2));
+
+    await tester.pumpAndSettle();
+    expect(find.byType(PandaMascot), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('tapping Panda invokes its welcome action',
+      (WidgetTester tester) async {
+    var tapped = false;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: MascotBubbleWidget(
+          speechText: 'Chào bé!',
+          onMascotTap: () => tapped = true,
+        ),
+      ),
+    );
+
+    await tester.tap(find.byType(PandaMascot));
+    await tester.pump();
+
+    expect(tapped, isTrue);
+    expect(tester.takeException(), isNull);
   });
 }

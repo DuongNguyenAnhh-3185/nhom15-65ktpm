@@ -327,7 +327,6 @@ class _HomeScreenState extends State<HomeScreen> {
   }) {
     return KidCard(
       onTap: () {
-        HapticFeedback.selectionClick();
         onTap();
       },
       semanticLabel: semanticLabel,
