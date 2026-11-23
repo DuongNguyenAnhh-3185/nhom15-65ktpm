@@ -11,6 +11,7 @@ import '../../../../shared/widgets/kid_button.dart';
 import '../../../../shared/widgets/kid_card.dart';
 import '../../../../shared/widgets/kid_decoration.dart';
 import '../../../../shared/widgets/mascot_bubble.dart';
+import '../../../../shared/widgets/panda_mascot.dart';
 import 'package:soroban_kids_app/features/1_abacus_engine/presentation/controllers/finger_math_controller.dart';
 import 'package:soroban_kids_app/features/1_abacus_engine/presentation/widgets/finger_math_board_widget.dart';
 import 'package:soroban_kids_app/features/3_lessons_flash_anzan/presentation/screens/flash_anzan_screen.dart';
@@ -119,6 +120,29 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  /// Biểu cảm Panda dựa trên chuỗi Streak hiện tại.
+  PandaExpression get _pandaExpression {
+    final streak = _profile?.streakCount ?? 0;
+    if (streak >= 7) return PandaExpression.celebrating;
+    if (streak >= 3) return PandaExpression.encouraging;
+    return PandaExpression.happy;
+  }
+
+  /// Lời chào động theo tên bé và chuỗi Streak.
+  String get _greetingText {
+    final name = _profile?.name;
+    final streak = _profile?.streakCount ?? 0;
+    final greeting = name != null && name.isNotEmpty
+        ? 'Chào bé $name!'
+        : 'Chào bé!';
+    if (streak >= 7) {
+      return '$greeting Tuyệt vời! $streak ngày liên tiếp rồi! 🎉';
+    } else if (streak >= 3) {
+      return '$greeting Giỏi lắm! $streak ngày liên tiếp! 🔥';
+    }
+    return '$greeting Hôm nay mình cùng chơi toán nhé!';
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -146,12 +170,10 @@ class _HomeScreenState extends State<HomeScreen> {
                         child: SizedBox(
                           width: mascotWidth,
                           child: MascotBubbleWidget(
-                            speechText:
-                                'Chào bé! Hôm nay mình cùng chơi toán nhé!',
+                            speechText: _greetingText,
+                            expression: _pandaExpression,
                             onMascotTap: () {
-                              _audioService.speak(
-                                'Chào bé! Hôm nay mình cùng chơi toán nhé!',
-                              );
+                              _audioService.speak(_greetingText);
                             },
                           ),
                         ),
@@ -166,7 +188,13 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        'Hôm nay mình cùng chơi toán nhé!',
+                        _profile == null
+                            ? 'Hôm nay mình cùng chơi toán nhé!'
+                            : (_profile!.streakCount >= 7
+                                ? 'Tuyệt vời! ${_profile!.streakCount} ngày liên tiếp rồi! 🎉'
+                                : _profile!.streakCount >= 3
+                                    ? 'Giỏi lắm! ${_profile!.streakCount} ngày liên tiếp! 🔥'
+                                    : 'Hôm nay mình cùng chơi toán nhé!'),
                         textAlign: TextAlign.center,
                         style: Theme.of(context).textTheme.bodyLarge,
                       ),

@@ -67,13 +67,10 @@ class MascotBubbleWidget extends StatelessWidget {
                 bottomLeft: Radius.circular(4),
               ),
             ),
-            child: const Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                Text('✋', style: TextStyle(fontSize: 34)),
-                Text('➕', style: TextStyle(fontSize: 34)),
-                Text('⚡', style: TextStyle(fontSize: 34)),
-              ],
+            child: Text(
+              speechText,
+              style: const TextStyle(fontSize: 16, color: Colors.white),
+              textAlign: TextAlign.start,
             ),
           ),
         ),
