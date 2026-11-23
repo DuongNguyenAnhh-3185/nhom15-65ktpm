@@ -15,6 +15,20 @@ class GamificationResult {
 }
 
 class GamificationService {
+  static List<BadgeItem> unlockedBadgesFor(ChildProfile profile) {
+    final unlockedIds = profile.unlockedBadgeIds.toSet();
+    return BadgeDefinitions.allBadges
+        .where((badge) => unlockedIds.contains(badge.id))
+        .toList(growable: false);
+  }
+
+  static List<BadgeItem> lockedBadgesFor(ChildProfile profile) {
+    final unlockedIds = profile.unlockedBadgeIds.toSet();
+    return BadgeDefinitions.allBadges
+        .where((badge) => !unlockedIds.contains(badge.id))
+        .toList(growable: false);
+  }
+
   /// Cập nhật chuỗi Streak và kiểm tra mở khóa huy hiệu sau mỗi bài làm
   static GamificationResult processLessonCompletion({
     required ChildProfile profile,
@@ -49,7 +63,7 @@ class GamificationService {
 
       switch (badge.id) {
         case 'starter_star':
-          shouldUnlock = allLogs.any((l) => l.isCorrect);
+          shouldUnlock = allLogs.isNotEmpty;
           break;
         case 'streak_3_days':
           shouldUnlock = newStreak >= 3;

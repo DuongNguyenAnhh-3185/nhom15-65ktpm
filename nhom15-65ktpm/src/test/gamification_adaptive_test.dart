@@ -128,6 +128,117 @@ void main() {
       expect(badgeIds.contains('voice_explorer'), isTrue);
     });
 
+    test('starter badge unlocks on the first completed attempt', () {
+      final profile = ChildProfile(
+        id: 'child_starter',
+        name: 'Bé Nam',
+        age: 5,
+        streakCount: 0,
+        lastActiveDate: '',
+        unlockedBadgeIds: const [],
+        currentLevel: 1,
+      );
+      final result = GamificationService.processLessonCompletion(
+        profile: profile,
+        allLogs: const [
+          AttemptLog(
+            questionId: 'q_1',
+            userAnswer: 0,
+            isCorrect: false,
+            responseTimeMs: 3000,
+            answeredVia: 'abacus_touch',
+            timestamp: '2026-11-23T10:00:00',
+          ),
+        ],
+        now: DateTime(2026, 11, 23, 10),
+      );
+
+      expect(
+        result.newlyUnlockedBadges.map((badge) => badge.id),
+        contains('starter_star'),
+      );
+    });
+
+    test('accuracy badge requires five most recent correct attempts', () {
+      final profile = ChildProfile(
+        id: 'child_accuracy',
+        name: 'Bé Nam',
+        age: 5,
+        streakCount: 0,
+        lastActiveDate: '',
+        unlockedBadgeIds: const [],
+        currentLevel: 1,
+      );
+
+      List<AttemptLog> attemptsWithCorrectCount(int correctCount) {
+        return List.generate(
+          5,
+          (index) => AttemptLog(
+            questionId: 'q_$index',
+            userAnswer: 1,
+            isCorrect: index < correctCount,
+            responseTimeMs: 3000,
+            answeredVia: 'abacus_touch',
+            timestamp: '2026-11-23T10:00:00',
+          ),
+        );
+      }
+
+      final allCorrect = GamificationService.processLessonCompletion(
+        profile: profile,
+        allLogs: attemptsWithCorrectCount(5),
+        now: DateTime(2026, 11, 23, 10),
+      );
+      final oneIncorrect = GamificationService.processLessonCompletion(
+        profile: profile,
+        allLogs: attemptsWithCorrectCount(4),
+        now: DateTime(2026, 11, 23, 10),
+      );
+
+      expect(
+        allCorrect.newlyUnlockedBadges.map((badge) => badge.id),
+        contains('accuracy_master'),
+      );
+      expect(
+        oneIncorrect.newlyUnlockedBadges.map((badge) => badge.id),
+        isNot(contains('accuracy_master')),
+      );
+    });
+
+    test('owned badges are not unlocked again and badge ids stay unique', () {
+      final profile = ChildProfile(
+        id: 'child_owned',
+        name: 'Bé Nam',
+        age: 5,
+        streakCount: 1,
+        lastActiveDate: DateTime(2026, 11, 22, 10).toUtc().toIso8601String(),
+        lastCompletedDate: '2026-11-22',
+        unlockedBadgeIds: const ['starter_star', 'starter_star'],
+        currentLevel: 1,
+      );
+      const log = AttemptLog(
+        questionId: 'q_1',
+        userAnswer: 5,
+        isCorrect: true,
+        responseTimeMs: 1200,
+        answeredVia: 'voice',
+        timestamp: '2026-11-23T10:00:00',
+      );
+
+      final result = GamificationService.processLessonCompletion(
+        profile: profile,
+        allLogs: const [log],
+        now: DateTime(2026, 11, 23, 10),
+      );
+      final newlyUnlockedIds =
+          result.newlyUnlockedBadges.map((badge) => badge.id).toList();
+      final ownedIds = result.updatedProfile.unlockedBadgeIds;
+
+      expect(newlyUnlockedIds, isNot(contains('starter_star')));
+      expect(newlyUnlockedIds.toSet().length, newlyUnlockedIds.length);
+      expect(ownedIds.toSet().length, ownedIds.length);
+    });
+
     test(
         'GamificationService records completion time and avoids same-day increments',
         () {

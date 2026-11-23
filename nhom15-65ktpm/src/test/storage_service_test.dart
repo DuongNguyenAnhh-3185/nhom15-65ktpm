@@ -30,6 +30,20 @@ void main() {
     final restored = await StorageService().getChildProfile();
 
     expect(restored, profile);
+    expect(
+      GamificationService.unlockedBadgesFor(restored).map((badge) => badge.id),
+      ['starter_star', 'streak_3_days'],
+    );
+    expect(
+      GamificationService.lockedBadgesFor(restored).map((badge) => badge.id),
+      [
+        'streak_7_days',
+        'streak_14_days',
+        'accuracy_master',
+        'speed_demon',
+        'voice_explorer'
+      ],
+    );
   });
 
   test('recorded completion survives a StorageService reload', () async {
