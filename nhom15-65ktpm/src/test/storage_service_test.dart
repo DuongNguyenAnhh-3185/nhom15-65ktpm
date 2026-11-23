@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:soroban_kids_app/core/services/gamification_service.dart';
 import 'package:soroban_kids_app/core/services/storage_service.dart';
 import 'package:soroban_kids_app/shared/entities/child_profile.dart';
 
@@ -29,6 +30,24 @@ void main() {
     final restored = await StorageService().getChildProfile();
 
     expect(restored, profile);
+  });
+
+  test('recorded completion survives a StorageService reload', () async {
+    final storage = StorageService();
+    final profile = await storage.getChildProfile();
+    final completedAt = DateTime(2026, 11, 23, 18, 30);
+    final result = GamificationService.processLessonCompletion(
+      profile: profile,
+      allLogs: const [],
+      now: completedAt,
+    );
+
+    await storage.saveChildProfile(result.updatedProfile);
+    final restored = await StorageService().getChildProfile();
+
+    expect(restored.streakCount, 1);
+    expect(restored.lastActiveDate, completedAt.toUtc().toIso8601String());
+    expect(restored.lastCompletedDate, '2026-11-23');
   });
 
   test('missing profile returns zero progress and an empty badge collection',
