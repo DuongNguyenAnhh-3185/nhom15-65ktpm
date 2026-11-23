@@ -63,7 +63,7 @@ class _HomeScreenState extends State<HomeScreen> {
       backgroundColor: Colors.transparent,
       builder: (context) {
         return Container(
-          height: MediaQuery.of(context).size.height * 0.75,
+          height: MediaQuery.of(context).size.height * 0.82,
           decoration: const BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.only(
@@ -71,7 +71,7 @@ class _HomeScreenState extends State<HomeScreen> {
               topRight: Radius.circular(32),
             ),
           ),
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
           child: Column(
             children: [
               Container(
@@ -82,42 +82,34 @@ class _HomeScreenState extends State<HomeScreen> {
                   borderRadius: BorderRadius.circular(10),
                 ),
               ),
-              const SizedBox(height: 12),
-              const Text('✋', style: TextStyle(fontSize: 40)),
-              const SizedBox(height: 12),
+              const SizedBox(height: 10),
+              const Text('✋', style: TextStyle(fontSize: 36)),
+              const SizedBox(height: 8),
               Expanded(
-                child: FingerMathBoardWidget(
-                  controller: fingerController,
-                  height: 230,
-                  showLiveValue: true,
+                child: SingleChildScrollView(
+                  child: FingerMathBoardWidget(
+                    controller: fingerController,
+                    height: 220,
+                    showLiveValue: true,
+                  ),
                 ),
               ),
               const SizedBox(height: 8),
-              ElevatedButton.icon(
+              KidButton(
                 onPressed: () {
                   HapticFeedback.selectionClick();
                   _audioService.speak(fingerController.speechDescription);
                 },
-                icon: const Icon(Icons.volume_up_rounded, size: 28),
-                label: const Text(''),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.secondary,
-                  foregroundColor: AppColors.textDark,
-                  minimumSize: const Size(
-                    AppDimensions.minTouchSize,
-                    AppDimensions.buttonHeight,
-                  ),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 24,
-                    vertical: 12,
-                  ),
-                ),
+                icon: Icons.volume_up_rounded,
+                label: 'Nghe số',
+                semanticLabel: 'Nghe phát âm số ngón tay',
+                backgroundColor: AppColors.secondary,
               ),
             ],
           ),
         );
       },
-    );
+    ).then((_) => _loadProfile());
   }
 
   /// Biểu cảm Panda dựa trên chuỗi Streak hiện tại.

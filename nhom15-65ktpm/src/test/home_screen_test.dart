@@ -5,6 +5,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:soroban_kids_app/core/services/audio_service.dart';
 import 'package:soroban_kids_app/core/services/storage_service.dart';
+import 'package:soroban_kids_app/features/1_abacus_engine/presentation/widgets/finger_math_board_widget.dart';
+import 'package:soroban_kids_app/features/2_gamification_parent/presentation/widgets/parental_gate_dialog.dart';
+import 'package:soroban_kids_app/features/3_lessons_flash_anzan/presentation/screens/flash_anzan_screen.dart';
+import 'package:soroban_kids_app/features/3_lessons_flash_anzan/presentation/screens/lesson_play_screen.dart';
 import 'package:soroban_kids_app/features/2_gamification_parent/presentation/screens/home_screen.dart';
 import 'package:soroban_kids_app/injection_container.dart';
 import 'package:soroban_kids_app/shared/widgets/kid_card.dart';
@@ -92,6 +96,61 @@ void main() {
 
     expect(find.text('Toán cơ bản'), findsOneWidget);
     expect(find.text('Công thức'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('tapping Tap dem opens finger math board modal',
+      (WidgetTester tester) async {
+    await tester.pumpWidget(const MaterialApp(home: HomeScreen()));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Tập đếm'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(FingerMathBoardWidget), findsOneWidget);
+    expect(find.text('Nghe số'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('tapping Flash Anzan navigates to FlashAnzanScreen',
+      (WidgetTester tester) async {
+    await tester.pumpWidget(const MaterialApp(home: HomeScreen()));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Flash Anzan'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(FlashAnzanScreen), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('tapping Phu huynh opens ParentalGateDialog',
+      (WidgetTester tester) async {
+    await tester.pumpWidget(const MaterialApp(home: HomeScreen()));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Phụ huynh'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(ParentalGateDialog), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
+      'tapping practice and selecting Toan co ban navigates to LessonPlayScreen',
+      (WidgetTester tester) async {
+    await tester.pumpWidget(const MaterialApp(home: HomeScreen()));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Luyện tập'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Toán cơ bản'));
+    // LessonPlayScreen has a repeating mic button animation, pump instead of pumpAndSettle:
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(find.byType(LessonPlayScreen), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
