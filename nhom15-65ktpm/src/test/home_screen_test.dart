@@ -14,6 +14,7 @@ import 'package:soroban_kids_app/injection_container.dart';
 import 'package:soroban_kids_app/shared/widgets/kid_card.dart';
 import 'package:soroban_kids_app/shared/widgets/mascot_bubble.dart';
 import 'package:soroban_kids_app/shared/widgets/panda_mascot.dart';
+import 'package:soroban_kids_app/shared/entities/child_profile.dart';
 
 class _TestAudioService implements AudioService {
   @override
@@ -118,6 +119,36 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('Home shows no earned streak when no profile has been saved',
+      (WidgetTester tester) async {
+    final preferences = await SharedPreferences.getInstance();
+    await preferences.remove('soroban_child_profile');
+
+    await tester.pumpWidget(const MaterialApp(home: HomeScreen()));
+    await tester.pumpAndSettle();
+
+    expect(find.text('0 ngày'), findsOneWidget);
+    final profile = await sl<StorageService>().getChildProfile();
+    expect(profile.streakCount, 0);
+    expect(profile.longestStreak, 0);
+    expect(profile.lastActiveDate, isEmpty);
+    expect(profile.unlockedBadgeIds, isEmpty);
+    expect(tester.takeException(), isNull);
+  });
+
+  test('ChildProfile defaults missing gamification data to zero progress', () {
+    final profile = ChildProfile.fromMap({
+      'id': 'new-child',
+      'name': 'Linh',
+      'age': 5,
+      'currentLevel': 1,
+    });
+
+    expect(profile.streakCount, 0);
+    expect(profile.longestStreak, 0);
+    expect(profile.unlockedBadgeIds, isEmpty);
+  });
+
   testWidgets('tapping Tap dem opens finger math board modal',
       (WidgetTester tester) async {
     await tester.pumpWidget(const MaterialApp(home: HomeScreen()));
@@ -140,6 +171,25 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(FlashAnzanScreen), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Home reloads streak data after returning from Flash Anzan',
+      (WidgetTester tester) async {
+    await tester.pumpWidget(const MaterialApp(home: HomeScreen()));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Flash Anzan'));
+    await tester.pumpAndSettle();
+
+    final storage = sl<StorageService>();
+    final profile = await storage.getChildProfile();
+    await storage.saveChildProfile(profile.copyWith(streakCount: 9));
+
+    Navigator.of(tester.element(find.byType(FlashAnzanScreen))).pop();
+    await tester.pumpAndSettle();
+
+    expect(find.text('9 ngày'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 

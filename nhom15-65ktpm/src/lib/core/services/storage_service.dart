@@ -12,18 +12,23 @@ class StorageService {
     final jsonStr = prefs.getString(_keyProfile);
     if (jsonStr != null) {
       try {
-        final Map<String, dynamic> map = jsonDecode(jsonStr);
-        return ChildProfile.fromMap(map);
-      } catch (_) {}
+        final decoded = jsonDecode(jsonStr);
+        if (decoded is Map<String, dynamic>) {
+          return ChildProfile.fromMap(decoded);
+        }
+      } on FormatException {
+        // Treat malformed persisted JSON as a profile without progress.
+      }
     }
-    // Mặc định cho bé mới
+    // Hồ sơ mới chưa có thành tích học tập.
     return ChildProfile(
       id: 'child_default',
       name: 'Bé Yêu',
       age: 5,
-      streakCount: 3,
-      lastActiveDate: DateTime.now().toIso8601String(),
-      unlockedBadgeIds: const ['star_starter', 'streak_3_days'],
+      streakCount: 0,
+      longestStreak: 0,
+      lastActiveDate: '',
+      unlockedBadgeIds: const [],
       currentLevel: 1,
     );
   }
