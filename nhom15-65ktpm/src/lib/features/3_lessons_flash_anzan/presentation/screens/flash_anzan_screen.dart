@@ -31,6 +31,20 @@ class _FlashStep {
   final bool isSubtraction;
 }
 
+class _FlashSessionResult {
+  const _FlashSessionResult({
+    required this.expression,
+    required this.answer,
+    required this.expectedAnswer,
+    required this.isCorrect,
+  });
+
+  final String expression;
+  final int answer;
+  final int expectedAnswer;
+  final bool isCorrect;
+}
+
 class FlashAnzanScreen extends StatefulWidget {
   const FlashAnzanScreen({super.key});
 
@@ -55,6 +69,9 @@ class _FlashAnzanScreenState extends State<FlashAnzanScreen> {
   int _sessionToken = 0;
   int _countdownValue = 3;
   String _adaptiveNote = '';
+  final List<_FlashSessionResult> _sessionResults = [];
+  bool _isShowingSummary = false;
+  bool _allowExit = false;
 
   @override
   void initState() {
@@ -186,6 +203,14 @@ class _FlashAnzanScreenState extends State<FlashAnzanScreen> {
       _userAnswer = answer;
       _isCorrect = isCorrect;
       _state = FlashState.finished;
+      _sessionResults.add(
+        _FlashSessionResult(
+          expression: _formatQuestionExpression(),
+          answer: answer,
+          expectedAnswer: _expectedAnswer,
+          isCorrect: isCorrect,
+        ),
+      );
     });
     _sessionToken++;
     _flashTimer?.cancel();
@@ -238,208 +263,331 @@ class _FlashAnzanScreenState extends State<FlashAnzanScreen> {
     });
   }
 
+  String _formatQuestionExpression() {
+    if (_numbers.isEmpty) return '';
+    final expression = StringBuffer('${_numbers.first}');
+    for (final number in _numbers.skip(1)) {
+      expression..write(number < 0 ? ' - ${number.abs()}' : ' + $number');
+    }
+    return expression.toString();
+  }
+
+  Future<void> _showSessionSummary() async {
+    if (_isShowingSummary || _allowExit) return;
+    _isShowingSummary = true;
+
+    final wasInProgress = _state == FlashState.countdown ||
+        _state == FlashState.starting ||
+        _state == FlashState.flashing ||
+        _state == FlashState.pause ||
+        _state == FlashState.waitingAnswer;
+    _sessionToken++;
+    _flashTimer?.cancel();
+    await _audioService.stopFeedback();
+    if (!mounted) {
+      _isShowingSummary = false;
+      return;
+    }
+
+    final results = List<_FlashSessionResult>.unmodifiable(_sessionResults);
+    final correct = results.where((result) => result.isCorrect).length;
+    final wrong = results.length - correct;
+    final shouldExit = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        final screenSize = MediaQuery.sizeOf(dialogContext);
+        final resultListHeight =
+            min(300.0, max(150.0, screenSize.height * 0.38));
+        return AlertDialog(
+          title: const Text('Kết quả lượt chơi'),
+          content: SizedBox(
+            width: min(420.0, screenSize.width * 0.82),
+            height: results.isEmpty ? 72 : resultListHeight,
+            child: results.isEmpty
+                ? const Align(
+                    alignment: Alignment.topLeft,
+                    child: Text('Bé chưa trả lời câu nào trong lượt này.'),
+                  )
+                : Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Đúng: $correct    Sai: $wrong'),
+                      const SizedBox(height: 8),
+                      Expanded(
+                        child: ListView.separated(
+                          itemCount: results.length,
+                          separatorBuilder: (_, __) => const Divider(height: 1),
+                          itemBuilder: (context, index) {
+                            final result = results[index];
+                            return ListTile(
+                              dense: true,
+                              contentPadding: EdgeInsets.zero,
+                              title: Text(
+                                '${result.expression} = ${result.expectedAnswer}',
+                              ),
+                              subtitle: Text(
+                                result.isCorrect
+                                    ? 'Đúng'
+                                    : 'Sai: ${result.answer}',
+                                style: TextStyle(
+                                  color: result.isCorrect
+                                      ? AppColors.success
+                                      : AppColors.error,
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text('CHƠI TIẾP'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              style: FilledButton.styleFrom(
+                backgroundColor: AppColors.error,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('KẾT THÚC'),
+            ),
+          ],
+        );
+      },
+    );
+
+    _isShowingSummary = false;
+    if (!mounted) return;
+    if (shouldExit == true) {
+      setState(() => _allowExit = true);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) Navigator.of(context).pop();
+      });
+    } else if (wasInProgress) {
+      setState(() => _state = FlashState.idle);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF7F8FC),
-      appBar: AppBar(
-        title: const Text('⚡ Flash Anzan Tính Nhẩm'),
-        backgroundColor: Colors.white,
-        elevation: 0.5,
-      ),
-      body: SafeArea(
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 600),
-            child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  if (_state == FlashState.countdown ||
-                      _state == FlashState.starting) ...[
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 24,
-                        vertical: 10,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppColors.accentOrange.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(22),
-                        border: Border.all(
-                          color: AppColors.accentOrange.withValues(alpha: 0.45),
+    return PopScope<Object?>(
+      canPop: _allowExit,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) unawaited(_showSessionSummary());
+      },
+      child: Scaffold(
+        backgroundColor: const Color(0xFFF7F8FC),
+        appBar: AppBar(
+          title: const Text('⚡ Flash Anzan Tính Nhẩm'),
+          backgroundColor: Colors.white,
+          elevation: 0.5,
+          leading: IconButton(
+            tooltip: 'Về trang chủ',
+            icon: const Icon(Icons.arrow_back_rounded),
+            onPressed: _showSessionSummary,
+          ),
+        ),
+        body: SafeArea(
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 600),
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    if (_state == FlashState.countdown ||
+                        _state == FlashState.starting) ...[
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 24,
+                          vertical: 10,
                         ),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            _state == FlashState.countdown
-                                ? Icons.timer_rounded
-                                : Icons.play_circle_fill_rounded,
-                            color: AppColors.accentOrange,
+                        decoration: BoxDecoration(
+                          color: AppColors.accentOrange.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(22),
+                          border: Border.all(
+                            color:
+                                AppColors.accentOrange.withValues(alpha: 0.45),
                           ),
-                          const SizedBox(width: 10),
-                          Text(
-                            _state == FlashState.countdown
-                                ? 'SẴN SÀNG: $_countdownValue'
-                                : 'BẮT ĐẦU!',
-                            style: const TextStyle(
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              _state == FlashState.countdown
+                                  ? Icons.timer_rounded
+                                  : Icons.play_circle_fill_rounded,
                               color: AppColors.accentOrange,
-                              fontSize: 20,
-                              fontWeight: FontWeight.w900,
                             ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                  ],
-
-                  // Thẻ tốc độ hiện tại
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: AppColors.accentPurple.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(
-                      'Tốc độ chớp số AI: ${_flashSpeedMs}ms / nhịp',
-                      style: const TextStyle(
-                        color: AppColors.accentPurple,
-                        fontWeight: FontWeight.w800,
-                        fontSize: 14,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-
-                  // Màn hình hiển thị số chớp
-                  Container(
-                    width: double.infinity,
-                    height: 220,
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(32),
-                      border: Border.all(
-                        color: _state == FlashState.flashing
-                            ? AppColors.accentPurple
-                            : Colors.grey.shade300,
-                        width: 3,
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: AppColors.accentPurple.withValues(alpha: 0.15),
-                          blurRadius: 16,
-                          offset: const Offset(0, 6),
-                        ),
-                      ],
-                    ),
-                    child: Center(
-                      child: _buildCenterDisplay(),
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-
-                  if (_state == FlashState.waitingAnswer) ...[
-                    const Text(
-                      'Bé hãy đọc to đáp án vào Micro hoặc chọn số:',
-                      style:
-                          TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
-                    ),
-                    const SizedBox(height: 12),
-                    VoiceAnswerMicButton(
-                      onAnswerDetected: (answer, raw) =>
-                          _submitAnswer(answer, method: 'voice'),
-                      onHintRequested: (speech) {
-                        _audioService.speak(
-                            'Gợi ý: Phép tính là ${_numbers.join(", ")}');
-                      },
-                    ),
-                    const SizedBox(height: 16),
-                    _buildQuickAnswerButtons(),
-                  ],
-
-                  if (_state == FlashState.finished) ...[
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: _isCorrect
-                            ? const Color(0xFFE8F7EE)
-                            : const Color(0xFFFFF1E8),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                          color:
-                              _isCorrect ? AppColors.success : AppColors.error,
-                          width: 2,
-                        ),
-                      ),
-                      child: Column(
-                        children: [
-                          Text(
-                            _isCorrect
-                                ? '🎉 HOÀN TOÀN CHÍNH XÁC! 🎉'
-                                : 'BÉ CHƯA ĐÚNG RỒI!',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w900,
-                              color: _isCorrect
-                                  ? AppColors.success
-                                  : AppColors.error,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'Đáp án đúng là: $_expectedAnswer (Bé chọn: $_userAnswer)',
-                            style: const TextStyle(
-                                fontSize: 15, fontWeight: FontWeight.bold),
-                          ),
-                          if (_adaptiveNote.isNotEmpty) ...[
-                            const SizedBox(height: 8),
+                            const SizedBox(width: 10),
                             Text(
-                              '💡 Thích ứng AI: $_adaptiveNote',
-                              textAlign: TextAlign.center,
+                              _state == FlashState.countdown
+                                  ? 'SẴN SÀNG: $_countdownValue'
+                                  : 'BẮT ĐẦU!',
                               style: const TextStyle(
-                                  fontSize: 12, color: AppColors.textLight),
+                                color: AppColors.accentOrange,
+                                fontSize: 20,
+                                fontWeight: FontWeight.w900,
+                              ),
                             ),
                           ],
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                    ],
+
+                    // Thẻ tốc độ hiện tại
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: AppColors.accentPurple.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        'Tốc độ chớp số AI: ${_flashSpeedMs}ms / nhịp',
+                        style: const TextStyle(
+                          color: AppColors.accentPurple,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+
+                    // Màn hình hiển thị số chớp
+                    Container(
+                      width: double.infinity,
+                      height: 220,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(32),
+                        border: Border.all(
+                          color: _state == FlashState.flashing
+                              ? AppColors.accentPurple
+                              : Colors.grey.shade300,
+                          width: 3,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color:
+                                AppColors.accentPurple.withValues(alpha: 0.15),
+                            blurRadius: 16,
+                            offset: const Offset(0, 6),
+                          ),
                         ],
                       ),
-                    ),
-                    const SizedBox(height: 20),
-                    ElevatedButton.icon(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary,
-                        foregroundColor: Colors.white,
-                        minimumSize: const Size(double.infinity, 54),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(18)),
+                      child: Center(
+                        child: _buildCenterDisplay(),
                       ),
-                      onPressed: _startFlashSession,
-                      icon: const Icon(Icons.arrow_forward_rounded),
-                      label: const Text('BÀI TIẾP THEO',
-                          style: TextStyle(
-                              fontSize: 17, fontWeight: FontWeight.bold)),
                     ),
-                  ],
+                    const SizedBox(height: 24),
 
-                  if (_state == FlashState.idle)
-                    ElevatedButton.icon(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.accentPurple,
-                        foregroundColor: Colors.white,
-                        minimumSize: const Size(double.infinity, 56),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(20)),
+                    if (_state == FlashState.waitingAnswer) ...[
+                      const Text(
+                        'Bé hãy đọc to đáp án vào Micro hoặc chọn số:',
+                        style: TextStyle(
+                            fontSize: 15, fontWeight: FontWeight.bold),
                       ),
-                      onPressed: _startFlashSession,
-                      icon: const Icon(Icons.play_arrow_rounded, size: 28),
-                      label: const Text('BẮT ĐẦU CHỚP SỐ ⚡',
-                          style: TextStyle(
-                              fontSize: 18, fontWeight: FontWeight.w900)),
-                    ),
-                ],
+                      const SizedBox(height: 12),
+                      VoiceAnswerMicButton(
+                        onAnswerDetected: (answer, raw) =>
+                            _submitAnswer(answer, method: 'voice'),
+                        onHintRequested: (speech) {
+                          _audioService.speak(
+                              'Gợi ý: Phép tính là ${_numbers.join(", ")}');
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                      _buildQuickAnswerButtons(),
+                    ],
+
+                    if (_state == FlashState.finished) ...[
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: _isCorrect
+                              ? const Color(0xFFE8F7EE)
+                              : const Color(0xFFFFF1E8),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: _isCorrect
+                                ? AppColors.success
+                                : AppColors.error,
+                            width: 2,
+                          ),
+                        ),
+                        child: Column(
+                          children: [
+                            Text(
+                              _isCorrect
+                                  ? '🎉 HOÀN TOÀN CHÍNH XÁC! 🎉'
+                                  : 'BÉ CHƯA ĐÚNG RỒI!',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w900,
+                                color: _isCorrect
+                                    ? AppColors.success
+                                    : AppColors.error,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Đáp án đúng là: $_expectedAnswer (Bé chọn: $_userAnswer)',
+                              style: const TextStyle(
+                                  fontSize: 15, fontWeight: FontWeight.bold),
+                            ),
+                            if (_adaptiveNote.isNotEmpty) ...[
+                              const SizedBox(height: 8),
+                              Text(
+                                '💡 Thích ứng AI: $_adaptiveNote',
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(
+                                    fontSize: 12, color: AppColors.textLight),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          foregroundColor: Colors.white,
+                          minimumSize: const Size(double.infinity, 54),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(18)),
+                        ),
+                        onPressed: _startFlashSession,
+                        icon: const Icon(Icons.arrow_forward_rounded),
+                        label: const Text('BÀI TIẾP THEO',
+                            style: TextStyle(
+                                fontSize: 17, fontWeight: FontWeight.bold)),
+                      ),
+                    ],
+
+                    if (_state == FlashState.idle)
+                      ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.accentPurple,
+                          foregroundColor: Colors.white,
+                          minimumSize: const Size(double.infinity, 56),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(20)),
+                        ),
+                        onPressed: _startFlashSession,
+                        icon: const Icon(Icons.play_arrow_rounded, size: 28),
+                        label: const Text('BẮT ĐẦU CHỚP SỐ ⚡',
+                            style: TextStyle(
+                                fontSize: 18, fontWeight: FontWeight.w900)),
+                      ),
+                  ],
+                ),
               ),
             ),
           ),
