@@ -145,7 +145,7 @@ class VietnameseNumberExtractor {
     }
 
     // 3. Kiểm tra nếu có chữ số trực tiếp trong câu (ví dụ STT trả về "15", "bằng 25", "-5", "âm 5")
-    final digitMatch = RegExp(r'(?:(?:âm|trừ)\s*(\d+))|(-?\d+)').firstMatch(rawSpeech.toLowerCase());
+    final digitMatch = RegExp(r'(?:(?:âm|trừ|-)\s*(\d+))|(-?\d+)').firstMatch(rawSpeech.toLowerCase());
     if (digitMatch != null) {
       if (digitMatch.group(1) != null) {
         final parsed = int.tryParse(digitMatch.group(1)!);
@@ -170,16 +170,18 @@ class VietnameseNumberExtractor {
 
     // 4. Nhận diện số âm dạng chữ ("âm năm", "trừ năm", "âm mười lăm"...)
     bool isNegative = false;
-    if (normalized.startsWith('âm ') ||
-        normalized.startsWith('trừ ') ||
-        normalized.contains(' âm ') ||
-        normalized.contains(' trừ ') ||
-        normalized.startsWith('-') ||
-        normalized.contains(' -')) {
+    final paddedCheck = ' $normalized ';
+    if (paddedCheck.contains(' âm ') ||
+        paddedCheck.contains(' trừ ') ||
+        paddedCheck.contains(' - ') ||
+        normalized.startsWith('-')) {
       isNegative = true;
-      normalized = normalized
-          .replaceAll(RegExp(r'\b(?:âm|trừ)\b'), ' ')
-          .replaceAll('-', ' ');
+      normalized = paddedCheck
+          .replaceAll(' âm ', ' ')
+          .replaceAll(' trừ ', ' ')
+          .replaceAll(' - ', ' ')
+          .replaceAll(RegExp(r'\s+'), ' ')
+          .trim();
     }
 
     // 5. Chuẩn hóa các biến thể phương ngữ thông dụng

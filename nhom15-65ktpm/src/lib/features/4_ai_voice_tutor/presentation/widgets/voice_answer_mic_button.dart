@@ -470,10 +470,10 @@ class _VoiceAnswerMicButtonState extends State<VoiceAnswerMicButton>
                     Flexible(
                       child: Text(
                         'Bé nói: "$_lastTranscript"',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w600,
-                          color: AppColors.textPrimary,
+                          color: AppColors.textDark,
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
