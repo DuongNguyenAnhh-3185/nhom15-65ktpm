@@ -28,6 +28,7 @@ class _LessonPlayScreenState extends State<LessonPlayScreen> {
   final AudioService _audioService = sl<AudioService>();
   final QuestionGenerator _generator = QuestionGenerator();
   late final FingerMathController _fingerController;
+  late final AdaptiveLearningEngine _adaptiveEngine;
   late SorobanQuestion _question;
   DateTime _questionStartTime = DateTime.now();
 
@@ -42,6 +43,12 @@ class _LessonPlayScreenState extends State<LessonPlayScreen> {
   @override
   void initState() {
     super.initState();
+    _adaptiveEngine = AdaptiveLearningEngine(
+      initialState: AdaptiveState(
+        currentDifficulty: widget.level,
+        isFingerGuideEnabled: false,
+      ),
+    );
     _fingerController = FingerMathController(showLeftHand: _isLevel2);
     _loadQuestion(isFirstQuestion: true);
   }
@@ -57,7 +64,7 @@ class _LessonPlayScreenState extends State<LessonPlayScreen> {
       _isLevel2 ? QuestionLevel.friendRules : QuestionLevel.basic,
     );
     _fingerController.setValue(_question.operands.first);
-    _showHint = false;
+    _showHint = _adaptiveEngine.state.isFingerGuideEnabled;
     _hasCheckedAnswer = false;
     _answeredCorrectly = false;
     _adaptiveFeedbackMessage = '';
@@ -109,11 +116,14 @@ class _LessonPlayScreenState extends State<LessonPlayScreen> {
       BadgeUnlockDialog.show(context, gamificationResult.newlyUnlockedBadges);
     }
 
-    // 3. Gia sư thích ứng đánh giá và hỗ trợ
-    final decision = AdaptiveTutorEngine.evaluatePerformance(
-      recentAttempts: allLogs,
-      currentLevel: widget.level,
+    // 3. Gia sư thích ứng đánh giá và hỗ trợ theo cửa sổ trượt
+    final attempt = AttemptResult(
+      isCorrect: isCorrect,
+      responseTimeMs: responseTime,
+      mode: PracticeMode.fingerMath,
+      difficultyLevel: widget.level,
     );
+    final decision = _adaptiveEngine.processAttempt(attempt);
 
     if (mounted) {
       setState(() {
@@ -253,6 +263,7 @@ class _LessonPlayScreenState extends State<LessonPlayScreen> {
                           controller: _fingerController,
                           height: handBoardHeight,
                           showLiveValue: true,
+                          isGuideEnabled: _showHint || _adaptiveEngine.state.isFingerGuideEnabled,
                         ),
                       ),
 
