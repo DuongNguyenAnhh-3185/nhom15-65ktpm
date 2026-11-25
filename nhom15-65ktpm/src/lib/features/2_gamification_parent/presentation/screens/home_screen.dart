@@ -57,6 +57,7 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
+  /// Biểu cảm Panda dựa trên chuỗi Streak hiện tại.
   PandaExpression get _pandaExpression {
     final streak = _profile?.streakCount ?? 0;
     if (streak >= 7) return PandaExpression.celebrating;
@@ -64,6 +65,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return PandaExpression.happy;
   }
 
+  /// Lời chào động theo tên bé và chuỗi Streak.
   String get _greetingText {
     final name = _profile?.name;
     final streak = _profile?.streakCount ?? 0;
@@ -71,8 +73,7 @@ class _HomeScreenState extends State<HomeScreen> {
         name != null && name.isNotEmpty ? 'Chào bé $name!' : 'Chào bé!';
     if (streak >= 7) {
       return '$greeting Tuyệt vời! $streak ngày liên tiếp rồi! 🎉';
-    }
-    if (streak >= 3) {
+    } else if (streak >= 3) {
       return '$greeting Giỏi lắm! $streak ngày liên tiếp! 🔥';
     }
     return '$greeting Hôm nay mình cùng chơi toán nhé!';
@@ -137,6 +138,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         style: Theme.of(context).textTheme.titleLarge,
                       ),
                       const SizedBox(height: 12),
+                      const SizedBox(height: 24),
                       GridView.count(
                         crossAxisCount: isWide ? 4 : 2,
                         crossAxisSpacing: 12,
@@ -486,29 +488,12 @@ class _HomeScreenState extends State<HomeScreen> {
                 semanticLabel: 'Bắt đầu luyện công thức',
                 backgroundColor: AppColors.accentPurple,
               ),
+              const SizedBox(height: 8),
             ],
           ),
         );
       },
     );
-  }
-
-  void _openLesson(int level) {
-    Navigator.push<void>(
-      context,
-      MaterialPageRoute(
-        builder: (_) => LessonPlayScreen(level: level),
-      ),
-    ).then((_) => _loadProfile());
-  }
-
-  void _openFlashAnzan() {
-    Navigator.push<void>(
-      context,
-      MaterialPageRoute(
-        builder: (_) => const FlashAnzanScreen(),
-      ),
-    ).then((_) => _loadProfile());
   }
 
   void _openParentDashboard() {
@@ -523,5 +508,23 @@ class _HomeScreenState extends State<HomeScreen> {
         ).then((_) => _loadProfile());
       },
     );
+  }
+
+  void _openLesson(int level) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => LessonPlayScreen(level: level),
+      ),
+    ).then((_) => _loadProfile());
+  }
+
+  void _openFlashAnzan() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const FlashAnzanScreen(),
+      ),
+    ).then((_) => _loadProfile());
   }
 }

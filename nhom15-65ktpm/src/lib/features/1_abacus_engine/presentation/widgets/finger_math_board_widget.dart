@@ -384,9 +384,10 @@ class _FingerMathBoardWidgetState extends State<FingerMathBoardWidget> {
             if (widget.showLiveValue)
               LayoutBuilder(
                 builder: (context, constraints) {
+                  final compact = constraints.maxWidth < 420;
                   final valueSummary = Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
+                    padding: EdgeInsets.symmetric(
+                      horizontal: compact ? 8 : 12,
                       vertical: 6,
                     ),
                     decoration: BoxDecoration(
@@ -399,31 +400,33 @@ class _FingerMathBoardWidgetState extends State<FingerMathBoardWidget> {
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Text(
+                        Text(
                           'Số: ',
                           style: TextStyle(
-                            fontSize: 15,
+                            fontSize: compact ? 13 : 15,
                             fontWeight: FontWeight.w700,
                             color: AppColors.textDark,
                           ),
                         ),
                         Text(
                           '$totalVal',
-                          style: const TextStyle(
-                            fontSize: 22,
+                          style: TextStyle(
+                            fontSize: compact ? 18 : 22,
                             fontWeight: FontWeight.w900,
                             color: AppColors.primary,
                           ),
                         ),
-                        const SizedBox(width: 6),
-                        Text(
-                          '(${rightHand.shortNotation})',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.secondary,
+                        SizedBox(width: compact ? 4 : 6),
+                        Flexible(
+                          child: Text(
+                            '(${rightHand.shortNotation})',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: compact ? 10 : 12,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.secondary,
+                            ),
                           ),
                         ),
                       ],
@@ -435,10 +438,18 @@ class _FingerMathBoardWidgetState extends State<FingerMathBoardWidget> {
                       IconButton(
                         tooltip: 'Xem Flashcard 1D & công thức',
                         onPressed: () => _showFormulaGuideModal(context),
-                        icon: const Icon(
+                        constraints: BoxConstraints.tightFor(
+                          width: compact ? 40 : 48,
+                          height: compact ? 40 : 48,
+                        ),
+                        padding: EdgeInsets.zero,
+                        visualDensity: compact
+                            ? VisualDensity.compact
+                            : VisualDensity.standard,
+                        icon: Icon(
                           Icons.help_outline_rounded,
                           color: AppColors.primary,
-                          size: 22,
+                          size: compact ? 20 : 22,
                         ),
                       ),
                       ElevatedButton.icon(
@@ -451,11 +462,12 @@ class _FingerMathBoardWidgetState extends State<FingerMathBoardWidget> {
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppColors.accentOrange,
                           foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(
+                          padding: EdgeInsets.symmetric(
                             horizontal: 10,
-                            vertical: 6,
+                            vertical: compact ? 8 : 6,
                           ),
-                          textStyle: const TextStyle(
+                          minimumSize: Size(0, compact ? 40 : 48),
+                          textStyle: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w800,
                           ),
@@ -465,28 +477,17 @@ class _FingerMathBoardWidgetState extends State<FingerMathBoardWidget> {
                   );
 
                   return Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
+                    padding: EdgeInsets.symmetric(
+                      horizontal: compact ? 8 : 16,
                       vertical: 6,
                     ),
-                    child: constraints.maxWidth < 420
-                        ? Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              Align(
-                                alignment: Alignment.centerLeft,
-                                child: valueSummary,
-                              ),
-                              Align(
-                                alignment: Alignment.centerRight,
-                                child: actions,
-                              ),
-                            ],
-                          )
-                        : Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [valueSummary, actions],
-                          ),
+                    child: Row(
+                      children: [
+                        Expanded(child: valueSummary),
+                        SizedBox(width: compact ? 4 : 12),
+                        actions,
+                      ],
+                    ),
                   );
                 },
               ),

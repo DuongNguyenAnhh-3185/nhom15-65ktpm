@@ -179,7 +179,8 @@ class _LessonPlayScreenState extends State<LessonPlayScreen>
         ),
       );
     } else {
-      existing.first.skipped = true;
+      // Keep a wrong answer as wrong when the child skips afterward.
+      existing.first.skipped = false;
     }
     setState(_loadQuestion);
   }
@@ -196,69 +197,77 @@ class _LessonPlayScreenState extends State<LessonPlayScreen>
 
     await showDialog<void>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Kết quả lượt chơi'),
-        content: SizedBox(
-          width: 420,
-          height: results.isEmpty ? 72 : 360,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Đúng: $correct    Sai: $wrong    Bỏ qua: $skipped'),
-              const SizedBox(height: 12),
-              if (results.isEmpty)
-                const Text('Bé chưa hoàn thành câu nào trong lượt này.')
-              else
-                Expanded(
-                  child: ListView.separated(
-                    itemCount: results.length,
-                    separatorBuilder: (_, __) => const Divider(height: 1),
-                    itemBuilder: (context, index) {
-                      final result = results[index];
-                      final status = result.skipped
-                          ? 'Đã bỏ qua'
-                          : result.isCorrect == true
-                              ? 'Đúng'
-                              : 'Sai: ${result.answer} (đáp án ${result.expectedAnswer})';
-                      final color = result.isCorrect == true
-                          ? AppColors.success
-                          : result.skipped
-                              ? AppColors.textLight
-                              : AppColors.error;
-                      return ListTile(
-                        dense: true,
-                        contentPadding: EdgeInsets.zero,
-                        title: Text(
-                          'Câu ${result.number}: ${result.expression} = ${result.expectedAnswer}',
-                        ),
-                        subtitle: Text(status, style: TextStyle(color: color)),
-                      );
-                    },
+      builder: (dialogContext) {
+        final screenSize = MediaQuery.sizeOf(dialogContext);
+        final resultListHeight = math.min(
+          300.0,
+          math.max(150.0, screenSize.height * 0.38),
+        );
+        return AlertDialog(
+          title: const Text('Kết quả lượt chơi'),
+          content: SizedBox(
+            width: math.min(420.0, screenSize.width * 0.82),
+            height: results.isEmpty ? 112 : resultListHeight,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Đúng: $correct    Sai: $wrong    Bỏ qua: $skipped'),
+                const SizedBox(height: 12),
+                if (results.isEmpty)
+                  const Text('Bé chưa hoàn thành câu nào trong lượt này.')
+                else
+                  Expanded(
+                    child: ListView.separated(
+                      itemCount: results.length,
+                      separatorBuilder: (_, __) => const Divider(height: 1),
+                      itemBuilder: (context, index) {
+                        final result = results[index];
+                        final status = result.skipped
+                            ? 'Đã bỏ qua'
+                            : result.isCorrect == true
+                                ? 'Đúng'
+                                : 'Sai: ${result.answer} (đáp án ${result.expectedAnswer})';
+                        final color = result.isCorrect == true
+                            ? AppColors.success
+                            : result.skipped
+                                ? AppColors.textLight
+                                : AppColors.error;
+                        return ListTile(
+                          dense: true,
+                          contentPadding: EdgeInsets.zero,
+                          title: Text(
+                            'Câu ${result.number}: ${result.expression} = ${result.expectedAnswer}',
+                          ),
+                          subtitle:
+                              Text(status, style: TextStyle(color: color)),
+                        );
+                      },
+                    ),
                   ),
-                ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text('CHƠI TIẾP'),
-          ),
-          FilledButton(
-            onPressed: () async {
-              await _audioService.stopFeedback();
-              if (!dialogContext.mounted || !mounted) return;
-              Navigator.of(dialogContext).pop();
-              Navigator.of(context).pop();
-            },
-            style: FilledButton.styleFrom(
-              backgroundColor: AppColors.error,
-              foregroundColor: Colors.white,
+              ],
             ),
-            child: const Text('KẾT THÚC'),
           ),
-        ],
-      ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('CHƠI TIẾP'),
+            ),
+            FilledButton(
+              onPressed: () async {
+                await _audioService.stopFeedback();
+                if (!dialogContext.mounted || !mounted) return;
+                Navigator.of(dialogContext).pop();
+                Navigator.of(context).pop();
+              },
+              style: FilledButton.styleFrom(
+                backgroundColor: AppColors.error,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('KẾT THÚC'),
+            ),
+          ],
+        );
+      },
     );
   }
 
