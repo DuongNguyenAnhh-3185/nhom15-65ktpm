@@ -3,6 +3,7 @@ import 'package:equatable/equatable.dart';
 enum ExtractionType {
   number,
   unknown, // Trẻ nói từ chối / không biết (ví dụ: "con không biết", "chịu", "khó quá")
+  unrecognized, // Chuỗi không nhận diện được số hợp lệ
   empty,
 }
 
@@ -40,6 +41,16 @@ class ExtractionResult extends Equatable {
           normalizedSpeech: normalizedSpeech,
         );
 
+  const ExtractionResult.unrecognized({
+    required String rawSpeech,
+    required String normalizedSpeech,
+  }) : this(
+          type: ExtractionType.unrecognized,
+          value: null,
+          rawSpeech: rawSpeech,
+          normalizedSpeech: normalizedSpeech,
+        );
+
   const ExtractionResult.empty({
     required String rawSpeech,
   }) : this(
@@ -51,16 +62,17 @@ class ExtractionResult extends Equatable {
 
   bool get isNumber => type == ExtractionType.number;
   bool get isUnknown => type == ExtractionType.unknown;
+  bool get isUnrecognized => type == ExtractionType.unrecognized;
   bool get isEmpty => type == ExtractionType.empty;
 
   @override
   List<Object?> get props => [type, value, rawSpeech, normalizedSpeech];
 }
 
-/// Bộ phân tích và trích xuất số tiếng Việt cho trẻ em mầm non:
-/// 1. Chuẩn hóa & loại bỏ từ đệm, từ xưng hô lễ phép ("dạ thưa cô", "ạ", "con tính ra", "bằng",...)
-/// 2. Bóc tách số dạng chữ số (0-999) & số dạng chữ (hàng chục, hàng trăm, phương ngữ như "lăm", "nhăm", "mốt", "hăm mốt", "tư", "linh", "lẻ")
-/// 3. Nhận diện các câu từ chối / chưa biết ("con không biết", "chịu", "khó quá", "bỏ qua") để trả về ExtractionResult.unknown và kích hoạt gợi ý
+/// Bộ phân tích và trích xuất số tiếng Việt cho trẻ em:
+/// 1. Chuẩn hóa & loại bỏ từ đệm, từ xưng hô lễ phép ("dạ", "thưa cô", "thưa thầy", "cô ơi", "ơi", "kết quả là", "đáp án là", "bằng", "là", "cho con hỏi", "số"...)
+/// 2. Bóc tách số dạng chữ số (-999 đến 9999) & số dạng chữ (hàng chục, hàng trăm, hàng nghìn, phương ngữ như "lăm", "nhăm", "mốt", "hăm mốt", "tư", "linh", "lẻ", số âm "âm năm" / "-5")
+/// 3. Nhận diện các câu từ chối / chưa biết ("con không biết", "chịu", "khó quá", "bỏ qua") để trả về ExtractionResult.unknown và kích hoạt gợi ý (hint) thay vì tính là câu trả lời sai
 class VietnameseNumberExtractor {
   static const Map<String, int> _unitWords = {
     'không': 0,
@@ -96,10 +108,10 @@ class VietnameseNumberExtractor {
     // 1. Chuẩn hóa văn bản cơ bản
     String normalized = rawSpeech
         .toLowerCase()
-        .replaceAll(RegExp(r'[,.\-?!;:]'), ' ')
+        .replaceAll(RegExp(r'[,.?!;:]'), ' ')
         .trim();
 
-    // 2. Kiểm tra mẫu từ chối / không biết của trẻ em
+    // 2. Kiểm tra mẫu từ chối / không biết của trẻ em -> Kích hoạt gợi ý (Hint)
     final refusalPatterns = [
       'không biết',
       'con không biết',
@@ -107,14 +119,20 @@ class VietnameseNumberExtractor {
       'không nhớ',
       'không rõ',
       'không hiểu',
+      'con không hiểu',
       'chịu',
       'con chịu',
+      'chịu thôi',
       'khó quá',
       'khó thế',
+      'khó vậy',
       'bỏ qua',
+      'qua câu khác',
       'chưa tính ra',
       'chưa tính được',
       'không làm được',
+      'con không làm được',
+      'không giải được',
     ];
 
     for (final pattern in refusalPatterns) {
@@ -126,20 +144,45 @@ class VietnameseNumberExtractor {
       }
     }
 
-    // 3. Kiểm tra nếu có chữ số trực tiếp trong câu (ví dụ STT trả về "15" hoặc "bằng 25")
-    final digitMatch = RegExp(r'\b\d+\b').firstMatch(rawSpeech);
+    // 3. Kiểm tra nếu có chữ số trực tiếp trong câu (ví dụ STT trả về "15", "bằng 25", "-5", "âm 5")
+    final digitMatch = RegExp(r'(?:(?:âm|trừ)\s*(\d+))|(-?\d+)').firstMatch(rawSpeech.toLowerCase());
     if (digitMatch != null) {
-      final parsed = int.tryParse(digitMatch.group(0)!);
-      if (parsed != null) {
-        return ExtractionResult.number(
-          value: parsed,
-          rawSpeech: rawSpeech,
-          normalizedSpeech: normalized,
-        );
+      if (digitMatch.group(1) != null) {
+        final parsed = int.tryParse(digitMatch.group(1)!);
+        if (parsed != null) {
+          return ExtractionResult.number(
+            value: -parsed,
+            rawSpeech: rawSpeech,
+            normalizedSpeech: normalized,
+          );
+        }
+      } else if (digitMatch.group(2) != null) {
+        final parsed = int.tryParse(digitMatch.group(2)!);
+        if (parsed != null) {
+          return ExtractionResult.number(
+            value: parsed,
+            rawSpeech: rawSpeech,
+            normalizedSpeech: normalized,
+          );
+        }
       }
     }
 
-    // 4. Chuẩn hóa các biến thể phương ngữ thông dụng
+    // 4. Nhận diện số âm dạng chữ ("âm năm", "trừ năm", "âm mười lăm"...)
+    bool isNegative = false;
+    if (normalized.startsWith('âm ') ||
+        normalized.startsWith('trừ ') ||
+        normalized.contains(' âm ') ||
+        normalized.contains(' trừ ') ||
+        normalized.startsWith('-') ||
+        normalized.contains(' -')) {
+      isNegative = true;
+      normalized = normalized
+          .replaceAll(RegExp(r'\b(?:âm|trừ)\b'), ' ')
+          .replaceAll('-', ' ');
+    }
+
+    // 5. Chuẩn hóa các biến thể phương ngữ thông dụng
     // "hăm mốt" -> "hai mươi mốt", "hăm nhăm" -> "hai mươi lăm", "hăm" -> "hai mươi"
     normalized = normalized.replaceAll('hăm mốt', 'hai mươi mốt');
     normalized = normalized.replaceAll('hăm nhăm', 'hai mươi lăm');
@@ -150,45 +193,64 @@ class VietnameseNumberExtractor {
       (match) => 'hai mươi',
     );
 
-    // 5. Loại bỏ từ đệm, từ xưng hô thông dụng của trẻ em
+    // 6. Loại bỏ từ đệm, từ xưng hô thông dụng của trẻ em
+    // Sắp xếp giảm dần theo độ dài để tránh cắt cụm từ
     final fillerWords = [
+      'dạ thưa cô bằng',
+      'dạ thưa thầy bằng',
+      'thưa cô bằng',
+      'thưa thầy bằng',
       'dạ thưa cô',
       'dạ thưa thầy',
-      'thưa cô',
-      'thưa thầy',
-      'dạ cô',
-      'dạ thầy',
-      'dạ',
-      'thưa',
-      'ạ cô',
-      'ạ thầy',
-      'ạ',
+      'cho con hỏi',
+      'kết quả là bằng',
+      'đáp án là bằng',
+      'kết quả là',
+      'đáp án là',
+      'kết quả bằng',
+      'đáp án bằng',
       'con tính ra',
+      'em tính ra',
       'con nghĩ là',
       'con tính là',
-      'con nghĩ',
-      'con',
-      'em tính ra',
-      'em',
-      'cháu',
-      'kết quả là',
+      'thưa cô',
+      'thưa thầy',
+      'chào cô',
+      'chào thầy',
+      'cô ơi',
+      'thầy ơi',
+      'ơi cô',
+      'ơi thầy',
       'kết quả',
-      'đáp án là',
       'đáp án',
+      'dạ cô',
+      'dạ thầy',
+      'ạ cô',
+      'ạ thầy',
+      'con nghĩ',
+      'nè cô',
       'bằng',
+      'thưa',
+      'cháu',
+      'con',
+      'em',
+      'nhé',
+      'nè',
+      'dạ',
+      'ạ',
+      'ơi',
       'là',
       'số',
       'câu',
-      'nè cô',
-      'nè',
-      'nhé',
-      'chào cô',
-      'chào thầy',
     ];
 
+    String padded = ' $normalized ';
     for (final filler in fillerWords) {
-      normalized = normalized.replaceAll(filler, ' ');
+      while (padded.contains(' $filler ')) {
+        padded = padded.replaceAll(' $filler ', ' ');
+      }
     }
+    normalized = padded.replaceAll(RegExp(r'\s+'), ' ').trim();
 
     final tokens = normalized
         .split(RegExp(r'\s+'))
@@ -199,32 +261,59 @@ class VietnameseNumberExtractor {
       return ExtractionResult.empty(rawSpeech: rawSpeech);
     }
 
-    // 6. Phân tích ngữ nghĩa số tiếng Việt
+    // 7. Phân tích ngữ nghĩa số tiếng Việt
     final parsedValue = _parseTokens(tokens);
     if (parsedValue != null) {
+      final finalVal = isNegative ? -parsedValue : parsedValue;
       return ExtractionResult.number(
-        value: parsedValue,
+        value: finalVal,
         rawSpeech: rawSpeech,
         normalizedSpeech: normalized,
       );
     }
 
-    return ExtractionResult.empty(rawSpeech: rawSpeech);
+    return ExtractionResult.unrecognized(
+      rawSpeech: rawSpeech,
+      normalizedSpeech: normalized,
+    );
   }
 
   /// Hàm tiện ích tương thích ngược trực tiếp trả về int?
+  /// Trả về null khi trẻ từ chối trả lời (isUnknown) hoặc khi không tìm thấy số hợp lệ.
   static int? extractNumber(String rawSpeech) {
     return extract(rawSpeech).value;
   }
 
   static int? _parseTokens(List<String> words) {
-    // Trường hợp 1 từ: "năm" -> 5, "mười" -> 10, "không" -> 0, "trăm" -> 100
+    // Trường hợp 1 từ: "năm" -> 5, "mười" -> 10, "không" -> 0, "trăm" -> 100, "nghìn" -> 1000
     if (words.length == 1) {
       final w = words.first;
       if (w == 'mười' || w == 'chục') return 10;
       if (w == 'trăm') return 100;
+      if (w == 'nghìn' || w == 'ngàn') return 1000;
       if (_unitWords.containsKey(w)) return _unitWords[w];
       return null;
+    }
+
+    // Trường hợp hàng nghìn / ngàn: ví dụ "một nghìn", "hai ngàn năm trăm"
+    if (words.contains('nghìn') || words.contains('ngàn')) {
+      final nghinWord = words.contains('nghìn') ? 'nghìn' : 'ngàn';
+      final nghinIndex = words.indexOf(nghinWord);
+      int thousands = 1;
+      if (nghinIndex > 0) {
+        thousands = _unitWords[words[nghinIndex - 1]] ?? 1;
+      }
+
+      final remainderWords = words.sublist(nghinIndex + 1);
+      if (remainderWords.isEmpty) {
+        return thousands * 1000;
+      }
+
+      final remValue = _parseTokens(remainderWords);
+      if (remValue != null) {
+        return thousands * 1000 + remValue;
+      }
+      return thousands * 1000;
     }
 
     // Trường hợp hàng trăm: ví dụ "một trăm", "một trăm linh năm", "hai trăm hai mươi mốt"
