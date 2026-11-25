@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:soroban_kids_app/features/1_abacus_engine/presentation/controllers/finger_math_controller.dart';
 import 'package:soroban_kids_app/features/1_abacus_engine/presentation/widgets/finger_math_board_widget.dart';
 import 'package:soroban_kids_app/features/3_lessons_flash_anzan/presentation/screens/flash_anzan_screen.dart';
@@ -18,6 +19,7 @@ import '../../../../shared/widgets/kid_decoration.dart';
 import '../../../../shared/widgets/kid_status_banner.dart';
 import '../../../../shared/widgets/kid_status_icon.dart';
 import '../../../../shared/widgets/mascot_bubble.dart';
+import '../../../../shared/widgets/panda_mascot.dart';
 import '../widgets/parental_gate_dialog.dart';
 import 'parent_dashboard_screen.dart';
 
@@ -55,11 +57,25 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
-  String get _pandaMessage {
+  PandaExpression get _pandaExpression {
     final streak = _profile?.streakCount ?? 0;
-    if (streak >= 7) return 'Tuyệt vời! Mình cùng giữ chuỗi nhé! 🎉';
-    if (streak >= 3) return 'Giỏi lắm! Cùng học tiếp nào! 🔥';
-    return 'Hôm nay mình cùng chơi toán nhé!';
+    if (streak >= 7) return PandaExpression.celebrating;
+    if (streak >= 3) return PandaExpression.encouraging;
+    return PandaExpression.happy;
+  }
+
+  String get _greetingText {
+    final name = _profile?.name;
+    final streak = _profile?.streakCount ?? 0;
+    final greeting =
+        name != null && name.isNotEmpty ? 'Chào bé $name!' : 'Chào bé!';
+    if (streak >= 7) {
+      return '$greeting Tuyệt vời! $streak ngày liên tiếp rồi! 🎉';
+    }
+    if (streak >= 3) {
+      return '$greeting Giỏi lắm! $streak ngày liên tiếp! 🔥';
+    }
+    return '$greeting Hôm nay mình cùng chơi toán nhé!';
   }
 
   @override
@@ -91,9 +107,12 @@ class _HomeScreenState extends State<HomeScreen> {
                         child: SizedBox(
                           width: mascotWidth,
                           child: MascotBubbleWidget(
-                            speechText: _pandaMessage,
-                            onMascotTap: () =>
-                                _audioService.speak(_pandaMessage),
+                            speechText: _greetingText,
+                            expression: _pandaExpression,
+                            onMascotTap: () {
+                              HapticFeedback.selectionClick();
+                              _audioService.speak(_greetingText);
+                            },
                           ),
                         ),
                       ),
@@ -328,7 +347,10 @@ class _HomeScreenState extends State<HomeScreen> {
     required VoidCallback onTap,
   }) {
     return KidCard(
-      onTap: onTap,
+      onTap: () {
+        HapticFeedback.selectionClick();
+        onTap();
+      },
       semanticLabel: semanticLabel,
       padding: const EdgeInsets.all(12),
       child: Column(
