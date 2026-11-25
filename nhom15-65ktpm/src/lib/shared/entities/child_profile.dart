@@ -18,7 +18,7 @@ class ChildProfile extends Equatable {
     required this.name,
     required this.age,
     required this.streakCount,
-    this.longestStreak = 3,
+    this.longestStreak = 0,
     required this.lastActiveDate,
     this.lastCompletedDate = '',
     required this.unlockedBadgeIds,
@@ -72,22 +72,33 @@ class ChildProfile extends Equatable {
   }
 
   factory ChildProfile.fromMap(Map<String, dynamic> map) {
+    final streakCount = _nonNegativeInt(map['streakCount'], 0);
+    final badgeIds = map['unlockedBadgeIds'];
+
     return ChildProfile(
-      id: map['id'] ?? '',
-      name: map['name'] ?? 'Bé Yêu',
-      age: map['age'] ?? 5,
-      streakCount: map['streakCount'] ?? 0,
-      longestStreak: map['longestStreak'] ?? (map['streakCount'] ?? 3),
-      lastActiveDate: map['lastActiveDate'] ?? '',
-      lastCompletedDate: map['lastCompletedDate'] ?? '',
-      unlockedBadgeIds: (map['unlockedBadgeIds'] as List<dynamic>?)
-              ?.map((e) => e.toString())
-              .toList() ??
-          const ['starter_star', 'streak_3_days'],
-      currentLevel: map['currentLevel'] ?? 1,
-      flashSpeedMs: map['flashSpeedMs'] ?? 1200,
-      fingerGuideEnabled: map['fingerGuideEnabled'] ?? false,
+      id: _stringValue(map['id'], ''),
+      name: _stringValue(map['name'], 'Bé Yêu'),
+      age: _nonNegativeInt(map['age'], 5),
+      streakCount: streakCount,
+      longestStreak: _nonNegativeInt(map['longestStreak'], streakCount),
+      lastActiveDate: _stringValue(map['lastActiveDate'], ''),
+      lastCompletedDate: _stringValue(map['lastCompletedDate'], ''),
+      unlockedBadgeIds:
+          badgeIds is List ? badgeIds.whereType<String>().toList() : const [],
+      currentLevel: _nonNegativeInt(map['currentLevel'], 1),
+      flashSpeedMs: _nonNegativeInt(map['flashSpeedMs'], 1200),
+      fingerGuideEnabled: map['fingerGuideEnabled'] is bool
+          ? map['fingerGuideEnabled'] as bool
+          : false,
     );
+  }
+
+  static int _nonNegativeInt(Object? value, int fallback) {
+    return value is int && value >= 0 ? value : fallback;
+  }
+
+  static String _stringValue(Object? value, String fallback) {
+    return value is String ? value : fallback;
   }
 
   @override

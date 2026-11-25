@@ -1,11 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:soroban_kids_app/features/1_abacus_engine/presentation/controllers/finger_math_controller.dart';
+import 'package:soroban_kids_app/features/1_abacus_engine/presentation/widgets/finger_math_board_widget.dart';
+import 'package:soroban_kids_app/features/3_lessons_flash_anzan/presentation/screens/flash_anzan_screen.dart';
+import 'package:soroban_kids_app/features/3_lessons_flash_anzan/presentation/screens/lesson_play_screen.dart';
+
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/services/audio_service.dart';
+import '../../../../core/services/gamification_service.dart';
 import '../../../../core/services/reminder_service.dart';
 import '../../../../core/services/storage_service.dart';
 import '../../../../injection_container.dart';
 import '../../../../shared/entities/child_profile.dart';
+import '../../../../shared/widgets/kid_badge_card.dart';
 import '../../../../shared/widgets/kid_button.dart';
 import '../../../../shared/widgets/kid_card.dart';
 import '../../../../shared/widgets/kid_decoration.dart';
@@ -13,10 +20,6 @@ import '../../../../shared/widgets/kid_status_banner.dart';
 import '../../../../shared/widgets/kid_status_icon.dart';
 import '../../../../shared/widgets/mascot_bubble.dart';
 import '../../../../shared/widgets/panda_mascot.dart';
-import 'package:soroban_kids_app/features/1_abacus_engine/presentation/controllers/finger_math_controller.dart';
-import 'package:soroban_kids_app/features/1_abacus_engine/presentation/widgets/finger_math_board_widget.dart';
-import 'package:soroban_kids_app/features/3_lessons_flash_anzan/presentation/screens/flash_anzan_screen.dart';
-import 'package:soroban_kids_app/features/3_lessons_flash_anzan/presentation/screens/lesson_play_screen.dart';
 import '../widgets/parental_gate_dialog.dart';
 import 'parent_dashboard_screen.dart';
 
@@ -47,70 +50,11 @@ class _HomeScreenState extends State<HomeScreen> {
       profile: profile,
     );
 
-    if (mounted) {
-      setState(() {
-        _profile = profile;
-        _showReminderBanner = showReminder;
-      });
-    }
-  }
-
-  void _openFreePlayModal() {
-    final fingerController = FingerMathController(showLeftHand: true);
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) {
-        return Container(
-          height: MediaQuery.of(context).size.height * 0.82,
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.only(
-              topLeft: Radius.circular(32),
-              topRight: Radius.circular(32),
-            ),
-          ),
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-          child: Column(
-            children: [
-              Container(
-                width: 48,
-                height: 6,
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade300,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
-              const SizedBox(height: 10),
-              const Text('✋', style: TextStyle(fontSize: 36)),
-              const SizedBox(height: 8),
-              Expanded(
-                child: SingleChildScrollView(
-                  child: FingerMathBoardWidget(
-                    controller: fingerController,
-                    height: 220,
-                    showLiveValue: true,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 8),
-              KidButton(
-                onPressed: () {
-                  HapticFeedback.selectionClick();
-                  _audioService.speak(fingerController.speechDescription);
-                },
-                icon: Icons.volume_up_rounded,
-                label: 'Nghe số',
-                semanticLabel: 'Nghe phát âm số ngón tay',
-                backgroundColor: AppColors.secondary,
-              ),
-            ],
-          ),
-        );
-      },
-    ).then((_) => _loadProfile());
+    if (!mounted) return;
+    setState(() {
+      _profile = profile;
+      _showReminderBanner = showReminder;
+    });
   }
 
   /// Biểu cảm Panda dựa trên chuỗi Streak hiện tại.
@@ -141,14 +85,13 @@ class _HomeScreenState extends State<HomeScreen> {
       body: SafeArea(
         child: LayoutBuilder(
           builder: (context, constraints) {
-            final isTablet = constraints.maxWidth >= 640;
+            final isWide = constraints.maxWidth >= 640;
             final horizontalPadding = constraints.maxWidth < 360 ? 12.0 : 20.0;
-            final availableMascotWidth = constraints.maxWidth - 32;
-            final mascotWidth = availableMascotWidth < 128
-                ? 0.0
-                : availableMascotWidth < 320
-                    ? availableMascotWidth
-                    : 320.0;
+            final contentWidth = (constraints.maxWidth - horizontalPadding * 2)
+                .clamp(0.0, double.infinity)
+                .toDouble();
+            final mascotWidth =
+                constraints.maxWidth < 360 ? contentWidth : 360.0;
 
             return SingleChildScrollView(
               padding: EdgeInsets.symmetric(
@@ -161,20 +104,19 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      const SizedBox(height: 8),
-                      if (mascotWidth > 0)
-                        Center(
-                          child: SizedBox(
-                            width: mascotWidth,
-                            child: MascotBubbleWidget(
-                              speechText: _greetingText,
-                              expression: _pandaExpression,
-                              onMascotTap: () {
-                                _audioService.speak(_greetingText);
-                              },
-                            ),
+                      Center(
+                        child: SizedBox(
+                          width: mascotWidth,
+                          child: MascotBubbleWidget(
+                            speechText: _greetingText,
+                            expression: _pandaExpression,
+                            onMascotTap: () {
+                              HapticFeedback.selectionClick();
+                              _audioService.speak(_greetingText);
+                            },
                           ),
                         ),
+                      ),
                       const SizedBox(height: 12),
                       Text(
                         _profile == null
@@ -183,30 +125,25 @@ class _HomeScreenState extends State<HomeScreen> {
                         textAlign: TextAlign.center,
                         style: Theme.of(context).textTheme.headlineLarge,
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        _profile == null
-                            ? 'Hôm nay mình cùng chơi toán nhé!'
-                            : (_profile!.streakCount >= 7
-                                ? 'Tuyệt vời! ${_profile!.streakCount} ngày liên tiếp rồi! 🎉'
-                                : _profile!.streakCount >= 3
-                                    ? 'Giỏi lắm! ${_profile!.streakCount} ngày liên tiếp! 🔥'
-                                    : 'Hôm nay mình cùng chơi toán nhé!'),
-                        textAlign: TextAlign.center,
-                        style: Theme.of(context).textTheme.bodyLarge,
-                      ),
-                      const SizedBox(height: 20),
+                      const SizedBox(height: 16),
                       _buildStreakCard(context),
                       if (_showReminderBanner) ...[
                         const SizedBox(height: 12),
                         _buildReminderBanner(),
                       ],
                       const SizedBox(height: 24),
+                      Text(
+                        'Chọn hoạt động',
+                        textAlign: TextAlign.center,
+                        style: Theme.of(context).textTheme.titleLarge,
+                      ),
+                      const SizedBox(height: 12),
+                      const SizedBox(height: 24),
                       GridView.count(
-                        crossAxisCount: isTablet ? 4 : 2,
+                        crossAxisCount: isWide ? 4 : 2,
                         crossAxisSpacing: 12,
                         mainAxisSpacing: 12,
-                        childAspectRatio: isTablet ? 1.15 : 0.92,
+                        childAspectRatio: isWide ? 1.12 : 0.92,
                         shrinkWrap: true,
                         physics: const NeverScrollableScrollPhysics(),
                         children: [
@@ -240,6 +177,11 @@ class _HomeScreenState extends State<HomeScreen> {
                             onTap: _openParentDashboard,
                           ),
                         ],
+                      ),
+                      const SizedBox(height: 24),
+                      _buildBadgeCollection(
+                        context,
+                        constraints.maxWidth,
                       ),
                     ],
                   ),
@@ -284,9 +226,13 @@ class _HomeScreenState extends State<HomeScreen> {
                   style: Theme.of(context).textTheme.bodyMedium,
                 ),
                 const SizedBox(height: 2),
-                Text(
-                  streakCount == null ? 'Đang tải…' : '$streakCount ngày',
-                  style: Theme.of(context).textTheme.titleLarge,
+                AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 280),
+                  child: Text(
+                    streakCount == null ? 'Đang tải…' : '$streakCount ngày',
+                    key: ValueKey(streakCount),
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
                 ),
               ],
             ),
@@ -300,23 +246,98 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  Widget _buildBadgeCollection(BuildContext context, double width) {
+    final profile = _profile;
+    if (profile == null) {
+      return const KidCard(
+        semanticLabel: 'Đang tải bộ sưu tập huy hiệu',
+        child: Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
+    final unlockedBadges = GamificationService.unlockedBadgesFor(profile);
+    final lockedBadges = GamificationService.lockedBadgesFor(profile);
+    final badges = [...unlockedBadges, ...lockedBadges];
+    final unlockedIds = unlockedBadges.map((badge) => badge.id).toSet();
+    final columns = width >= 900
+        ? 4
+        : width >= 560
+            ? 3
+            : 2;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          children: [
+            const Icon(
+              Icons.emoji_events_rounded,
+              color: AppColors.secondary,
+              size: 30,
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'Huy hiệu',
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+            ),
+            Semantics(
+              label:
+                  '${unlockedBadges.length} trên ${badges.length} huy hiệu đã mở khóa',
+              child: Text(
+                '${unlockedBadges.length}/${badges.length}',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      color: AppColors.primaryText,
+                    ),
+              ),
+            ),
+          ],
+        ),
+        if (unlockedBadges.isEmpty) ...[
+          const SizedBox(height: 4),
+          Text(
+            'Học tập để mở huy hiệu đầu tiên nhé!',
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+        ],
+        const SizedBox(height: 12),
+        GridView.builder(
+          itemCount: badges.length,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: columns,
+            mainAxisSpacing: 10,
+            crossAxisSpacing: 10,
+            childAspectRatio: columns == 2 ? 0.95 : 0.9,
+          ),
+          itemBuilder: (context, index) {
+            final badge = badges[index];
+            return KidBadgeCard(
+              badge: badge,
+              isUnlocked: unlockedIds.contains(badge.id),
+              size: 100,
+            );
+          },
+        ),
+      ],
+    );
+  }
+
   Widget _buildReminderBanner() {
     return KidStatusBanner(
       status: KidStatusType.warning,
       iconEmoji: '⏰',
-      title: 'Đã 19:00 rồi! Giờ luyện tập Finger Math!',
-      subtitle: 'Cùng luyện tập để giữ ngọn lửa chuỗi Streak nhé bé ơi! 🔥',
-      actionLabel: '👉 Bắt đầu ngay!',
-      onAction: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => const LessonPlayScreen(level: 1),
-          ),
-        ).then((_) => _loadProfile());
-      },
+      title: 'Đã đến giờ luyện tập!',
+      subtitle: 'Cùng học để duy trì chuỗi ngày nhé!',
+      actionLabel: 'Bắt đầu ngay',
+      onAction: () => _openLesson(1),
       onDismiss: () => setState(() => _showReminderBanner = false),
-      margin: const EdgeInsets.only(bottom: 8),
+      margin: EdgeInsets.zero,
     );
   }
 
@@ -333,7 +354,6 @@ class _HomeScreenState extends State<HomeScreen> {
         onTap();
       },
       semanticLabel: semanticLabel,
-      color: AppColors.cardBg,
       padding: const EdgeInsets.all(12),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -363,18 +383,60 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  void _openParentDashboard() {
-    ParentalGateDialog.show(
-      context,
-      onPass: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => const ParentDashboardScreen(),
+  void _openFreePlayModal() {
+    final fingerController = FingerMathController(showLeftHand: true);
+
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) {
+        return FractionallySizedBox(
+          heightFactor: 0.82,
+          child: Container(
+            padding: const EdgeInsets.all(20),
+            decoration: const BoxDecoration(
+              color: AppColors.cardBg,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+            ),
+            child: Column(
+              children: [
+                Container(
+                  width: 48,
+                  height: 6,
+                  decoration: BoxDecoration(
+                    color: AppColors.outline,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                const Text('✋', style: TextStyle(fontSize: 36)),
+                const SizedBox(height: 8),
+                Expanded(
+                  child: SingleChildScrollView(
+                    child: FingerMathBoardWidget(
+                      controller: fingerController,
+                      height: 220,
+                      showLiveValue: true,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                KidButton(
+                  onPressed: () =>
+                      _audioService.speak(fingerController.speechDescription),
+                  icon: Icons.volume_up_rounded,
+                  label: 'Nghe số',
+                  semanticLabel: 'Nghe phát âm số ngón tay',
+                  backgroundColor: AppColors.secondary,
+                ),
+              ],
+            ),
           ),
-        ).then((_) => _loadProfile());
+        );
       },
-    );
+    ).then((_) => _loadProfile());
   }
 
   void _openPracticeOptions() {
@@ -430,6 +492,20 @@ class _HomeScreenState extends State<HomeScreen> {
             ],
           ),
         );
+      },
+    );
+  }
+
+  void _openParentDashboard() {
+    ParentalGateDialog.show(
+      context,
+      onPass: () {
+        Navigator.push<void>(
+          context,
+          MaterialPageRoute(
+            builder: (_) => const ParentDashboardScreen(),
+          ),
+        ).then((_) => _loadProfile());
       },
     );
   }

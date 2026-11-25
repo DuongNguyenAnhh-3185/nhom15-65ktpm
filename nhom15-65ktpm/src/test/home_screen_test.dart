@@ -12,12 +12,23 @@ import 'package:soroban_kids_app/features/3_lessons_flash_anzan/presentation/scr
 import 'package:soroban_kids_app/features/2_gamification_parent/presentation/screens/home_screen.dart';
 import 'package:soroban_kids_app/injection_container.dart';
 import 'package:soroban_kids_app/shared/widgets/kid_card.dart';
+import 'package:soroban_kids_app/shared/widgets/kid_badge_card.dart';
 import 'package:soroban_kids_app/shared/widgets/mascot_bubble.dart';
 import 'package:soroban_kids_app/shared/widgets/panda_mascot.dart';
+import 'package:soroban_kids_app/shared/entities/child_profile.dart';
 
 class _TestAudioService implements AudioService {
   @override
   Future<void> playBeadClick() async {}
+
+  @override
+  Future<bool> playCorrectAnswerSound() async => true;
+
+  @override
+  Future<void> playIncorrectAnswerSound() async {}
+
+  @override
+  Future<void> stopFeedback() async {}
 
   @override
   Future<void> playEncouragementFeedback([String? explanation]) async {}
@@ -81,7 +92,10 @@ void main() {
       expect(find.text('Chào bé Linh!'), findsOneWidget);
       expect(find.text('8 ngày'), findsOneWidget);
       expect(find.byType(KidCard), findsNWidgets(5));
+      expect(find.byType(KidBadgeCard), findsNWidgets(7));
       expect(find.byType(PandaMascot), findsOneWidget);
+      expect(find.text('0/7'), findsOneWidget);
+      expect(find.text('Chưa mở'), findsNWidgets(7));
       expect(find.text('Chọn hoạt động'), findsOneWidget);
       expect(find.text('Tập đếm'), findsOneWidget);
       expect(find.text('Luyện tập'), findsOneWidget);
@@ -105,11 +119,33 @@ void main() {
     }
   });
 
+  testWidgets('Home shows earned and locked badges from the saved profile',
+      (WidgetTester tester) async {
+    final storage = sl<StorageService>();
+    final profile = await storage.getChildProfile();
+    await storage.saveChildProfile(
+      profile.copyWith(
+        streakCount: 2,
+        unlockedBadgeIds: const ['starter_star'],
+      ),
+    );
+
+    await tester.pumpWidget(const MaterialApp(home: HomeScreen()));
+    await tester.pumpAndSettle();
+
+    expect(find.text('2 ngày'), findsOneWidget);
+    expect(find.text('1/7'), findsOneWidget);
+    expect(find.text('Đã đạt'), findsOneWidget);
+    expect(find.text('Chưa mở'), findsNWidgets(6));
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('practice action offers both existing lesson levels',
       (WidgetTester tester) async {
     await tester.pumpWidget(const MaterialApp(home: HomeScreen()));
     await tester.pumpAndSettle();
 
+    await tester.ensureVisible(find.text('Luyện tập'));
     await tester.tap(find.text('Luyện tập'));
     await tester.pumpAndSettle();
 
@@ -118,11 +154,42 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('Home shows no earned streak when no profile has been saved',
+      (WidgetTester tester) async {
+    final preferences = await SharedPreferences.getInstance();
+    await preferences.remove('soroban_child_profile');
+
+    await tester.pumpWidget(const MaterialApp(home: HomeScreen()));
+    await tester.pumpAndSettle();
+
+    expect(find.text('0 ngày'), findsOneWidget);
+    final profile = await sl<StorageService>().getChildProfile();
+    expect(profile.streakCount, 0);
+    expect(profile.longestStreak, 0);
+    expect(profile.lastActiveDate, isEmpty);
+    expect(profile.unlockedBadgeIds, isEmpty);
+    expect(tester.takeException(), isNull);
+  });
+
+  test('ChildProfile defaults missing gamification data to zero progress', () {
+    final profile = ChildProfile.fromMap({
+      'id': 'new-child',
+      'name': 'Linh',
+      'age': 5,
+      'currentLevel': 1,
+    });
+
+    expect(profile.streakCount, 0);
+    expect(profile.longestStreak, 0);
+    expect(profile.unlockedBadgeIds, isEmpty);
+  });
+
   testWidgets('tapping Tap dem opens finger math board modal',
       (WidgetTester tester) async {
     await tester.pumpWidget(const MaterialApp(home: HomeScreen()));
     await tester.pumpAndSettle();
 
+    await tester.ensureVisible(find.text('Tập đếm'));
     await tester.tap(find.text('Tập đếm'));
     await tester.pumpAndSettle();
 
@@ -136,10 +203,31 @@ void main() {
     await tester.pumpWidget(const MaterialApp(home: HomeScreen()));
     await tester.pumpAndSettle();
 
+    await tester.ensureVisible(find.text('Flash Anzan'));
     await tester.tap(find.text('Flash Anzan'));
     await tester.pumpAndSettle();
 
     expect(find.byType(FlashAnzanScreen), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Home reloads streak data after returning from Flash Anzan',
+      (WidgetTester tester) async {
+    await tester.pumpWidget(const MaterialApp(home: HomeScreen()));
+    await tester.pumpAndSettle();
+
+    await tester.ensureVisible(find.text('Flash Anzan'));
+    await tester.tap(find.text('Flash Anzan'));
+    await tester.pumpAndSettle();
+
+    final storage = sl<StorageService>();
+    final profile = await storage.getChildProfile();
+    await storage.saveChildProfile(profile.copyWith(streakCount: 9));
+
+    Navigator.of(tester.element(find.byType(FlashAnzanScreen))).pop();
+    await tester.pumpAndSettle();
+
+    expect(find.text('9 ngày'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -148,6 +236,7 @@ void main() {
     await tester.pumpWidget(const MaterialApp(home: HomeScreen()));
     await tester.pumpAndSettle();
 
+    await tester.ensureVisible(find.text('Phụ huynh'));
     await tester.tap(find.text('Phụ huynh'));
     await tester.pumpAndSettle();
 
@@ -161,6 +250,7 @@ void main() {
     await tester.pumpWidget(const MaterialApp(home: HomeScreen()));
     await tester.pumpAndSettle();
 
+    await tester.ensureVisible(find.text('Luyện tập'));
     await tester.tap(find.text('Luyện tập'));
     await tester.pumpAndSettle();
 
