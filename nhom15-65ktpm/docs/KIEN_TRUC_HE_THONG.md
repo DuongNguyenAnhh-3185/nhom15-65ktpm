@@ -13,7 +13,7 @@ graph TD
     
     subgraph Shared_Data_Contract[Data Contract - Giao Ước Dữ Liệu Chung]
         CP[ChildProfile]
-        SQ["SorobanQuestion (FingerMathQuestion)"]
+        SQ[FingerMathQuestion]
         AL[AttemptLog]
     end
 
@@ -70,7 +70,7 @@ graph TD
 - `unlockedBadgeIds`: Danh sách ID các huy hiệu bé đã đạt được.
 - `currentLevel`: Cấp độ hiện tại (1: Nhận diện, 2: Anh bạn nhỏ/lớn, 3: Flash Anzan).
 
-### 2.2. `SorobanQuestion`
+### 2.2. `FingerMathQuestion` (Data Contract)
 - `id`: Mã câu hỏi.
 - `level`: Cấp độ bài toán (1, 2, 3).
 - `operands`: Danh sách các số hạng trong phép tính (ví dụ: `[2, 3, -1]`).

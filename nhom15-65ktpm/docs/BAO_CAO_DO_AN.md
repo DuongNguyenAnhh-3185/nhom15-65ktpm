@@ -140,7 +140,7 @@ Dự án được tổ chức theo mô hình **Feature-First Clean Architecture*
 - `lib/core/`: Các hằng số màu sắc, dịch vụ hạ tầng (`AudioService`, `StorageService`).
 - `lib/shared/`: Định nghĩa các thực thể dữ liệu dùng chung (**Data Contract**):
   - `ChildProfile`: Lưu tên bé, tuổi, chuỗi ngày học Streak, điểm số và danh sách huy hiệu.
-  - `SorobanQuestion` (hay `FingerMathQuestion`): Cấu trúc đề bài (các toán hạng, đáp án mong đợi, cấp độ, tốc độ chớp số).
+  - `FingerMathQuestion`: Cấu trúc đề bài (các toán hạng, đáp án mong đợi, cấp độ, tốc độ chớp số).
   - `AttemptLog`: Nhật ký một lần làm bài (câu hỏi, câu trả lời, đúng/sai, thời gian phản hồi miligiây, phương thức trả lời).
 - `lib/features/`: 4 module tính năng hoàn toàn độc lập của 4 thành viên.
 
@@ -230,12 +230,12 @@ Hệ thống sử dụng mô hình cửa sổ trượt (Rolling Window) để ph
 
 ## CHƯƠNG 4: HIỆN THỰC HÓA VÀ KẾT QUẢ ĐẠT ĐƯỢC
 
-### 4.1. Hiện thực Module 1: Finger Math Engine & Soroban ảo 60fps
-- **Tập tin hiện thực:** `finger_hand_state.dart`, `finger_math_controller.dart`, `finger_hand_painter.dart`, `finger_math_board_widget.dart`, `soroban_painter.dart`, `soroban_board_widget.dart`.
+### 4.1. Hiện thực Module 1: Finger Math Engine 2 Bàn Tay 60fps
+- **Tập tin hiện thực:** `finger_hand_state.dart`, `finger_math_controller.dart`, `finger_hand_painter.dart`, `finger_math_board_widget.dart`.
 - **Điểm nổi bật:**
-  - Chạm đa điểm nhận diện chính xác vùng ngón cái và vùng 4 ngón dài.
-  - Tích hợp cửa sổ BottomSheet tra cứu bảng quy ước 2 bàn tay và công thức Anh bạn nhỏ / lớn ngay trên bàn tính.
-  - Chế độ tự do cho phép chuyển đổi tức thì giữa ✋ Finger Math và 🧮 Soroban.
+  - Chạm đa điểm nhận diện chính xác vùng ngón cái và vùng 4 ngón dài trên cả hai bàn tay (Tay Phải 0–9, Tay Trái 10–90).
+  - Tích hợp cửa sổ BottomSheet tra cứu bảng quy ước 2 bàn tay và công thức Anh bạn nhỏ / lớn trực quan sinh động.
+  - Chế độ tự do cho phép thực hành gập mở ngón tay tự do và sinh gợi ý giải step-by-step theo thời gian thực.
 
 ### 4.2. Hiện thực Module 2: Zero-Text UI, Gamification Streak & Cổng phụ huynh
 - **Tập tin hiện thực:** `home_screen.dart`, `parent_dashboard_screen.dart`, `parental_gate_dialog.dart`, `streak_calculator.dart`.
@@ -263,7 +263,7 @@ Hệ thống được kiểm định với bộ kiểm thử tự động toàn 
 - **Kiểm tra cú pháp và chất lượng mã nguồn:** `dart analyze lib test` đạt chuẩn: **0 Errors, 0 Warnings**.
 - **Khả năng biên dịch đa nền tảng:**
   - Web Chrome: Biên dịch và chạy mượt mà trên trình duyệt.
-  - Windows Desktop Native: Biên dịch hoàn chỉnh ra tệp thực thi `build\windows\x64\runner\Release\soroban_kids_app.exe`.
+  - Windows Desktop Native: Biên dịch hoàn chỉnh ra tệp thực thi `build\windows\x64\runner\Release\finger_math_kids_app.exe`.
 
 ---
 
@@ -273,7 +273,7 @@ Hệ thống được kiểm định với bộ kiểm thử tự động toàn 
 Nhóm 15 đã hoàn thành xuất sắc $100\%$ các mục tiêu đề ra cho đồ án môn học:
 1. Đảm bảo nghiêm ngặt cam kết toán học: **Chỉ gồm phép cộng và phép trừ** trong phạm vi 0–99.
 2. Thiết kế giao diện Không chữ (Zero-Text UI) thân thiện, trực quan cho trẻ 4–6 tuổi.
-3. Hiện thực thành công hệ thống kép: **Bàn tay Finger Math hai bàn tay** và **Bàn tính ảo Soroban**.
+3. Hiện thực thành công mô hình toán tư duy: **Bàn tay Finger Math hai bàn tay chuẩn hóa** ($0 \le \text{kết quả} \le 99$).
 4. Ứng dụng trợ lý giọng nói tiếng Việt và thuật toán gia sư thích ứng AI thông minh.
 5. Quy trình quản trị Git chuyên nghiệp, phân nhánh độc lập không xung đột và đã mở Pull Request #4 thành công.
 
@@ -281,7 +281,7 @@ Nhóm 15 đã hoàn thành xuất sắc $100\%$ các mục tiêu đề ra cho đ
 
 | Thành Viên | Phụ Trách Kỹ Thuật | Sản Phẩm Bàn Giao | Đánh Giá |
 | :--- | :--- | :--- | :---: |
-| **Dương Nguyên Anh** *(2351170569)* | **Tech Lead & Module 1**<br>Soroban & Finger Math Engine | `finger_hand_painter.dart`, `soroban_painter.dart`, `finger_math_controller.dart`, 11 test cases | **100% Hoàn thành xuất sắc** |
+| **Dương Nguyên Anh** *(2351170569)* | **Tech Lead & Module 1**<br>Finger Math Engine 2 Bàn Tay | `finger_hand_painter.dart`, `finger_math_controller.dart`, `finger_hand_state.dart`, 10 test cases | **100% Hoàn thành xuất sắc** |
 | **Phạm Duy Thái** *(2351060487)* | **Module 2**<br>Zero-Text UI, Gamification & Parent Gate | `home_screen.dart`, `parent_dashboard_screen.dart`, `streak_calculator.dart`, 3 test cases | **100% Hoàn thành xuất sắc** |
 | **Nguyễn Thị Thu Hoài** *(2351170594)* | **Module 3**<br>Question Generator & Flash Anzan | `question_generator.dart`, `lesson_play_screen.dart`, `flash_anzan_screen.dart`, 1 test case | **100% Hoàn thành xuất sắc** |
 | **Nguyễn Thị Cẩm Ly** *(2351170605)* | **Module 4**<br>AI Voice Recognition & Adaptive Tutor | `vietnamese_number_extractor.dart`, `adaptive_tutor_engine.dart`, `voice_answer_mic_button.dart`, 7 test cases | **100% Hoàn thành xuất sắc** |
@@ -298,5 +298,5 @@ Nhóm 15 đã hoàn thành xuất sắc $100\%$ các mục tiêu đề ra cho đ
 1. Đỗ Oanh Cường, *Bài giảng Phát Triển Ứng Dụng Di Động*, Đại học Giao thông Vận tải, 2026.
 2. Google Flutter Documentation, *Building Custom UI with CustomPainter*, https://docs.flutter.dev.
 3. Dart Language Tour, *Effective Dart & State Management*, https://dart.dev.
-4. KiddiMath & B-Smart, *Giáo trình Toán tư duy Finger Math và Soroban cho trẻ mầm non*, NXB Giáo Dục, 2023.
+4. KiddiMath & B-Smart, *Giáo trình Toán tư duy Finger Math cho trẻ mầm non*, NXB Giáo Dục, 2023.
 5. SpeechRecognition & Web Speech API Standards, W3C Recommendation.

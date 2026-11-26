@@ -45,7 +45,7 @@
 ### SLIDE 4: TỔNG QUAN KIẾN TRÚC HỆ THỐNG & DATA CONTRACT
 - **Mô hình kiến trúc:** Feature-First Clean Architecture chia 4 tầng rõ ràng:
   - `core/`: Hạ tầng dùng chung (Constants, Theme, AudioService, StorageService).
-  - `shared/`: Giao ước dữ liệu (**Data Contract**) khóa cứng 3 Entity chung ngay từ đầu (`ChildProfile`, `SorobanQuestion`, `AttemptLog`).
+  - `shared/`: Giao ước dữ liệu (**Data Contract**) khóa cứng 3 Entity chung ngay từ đầu (`ChildProfile`, `FingerMathQuestion`, `AttemptLog`).
   - `features/`: 4 module tính năng tương ứng với ma trận phân công 4 thành viên.
   - `test/`: Bộ kiểm thử tự động toàn diện.
 - **Ý nghĩa:** Cho phép 4 thành viên code độc lập song song bằng mock data mà không bao giờ xung đột mã nguồn.
