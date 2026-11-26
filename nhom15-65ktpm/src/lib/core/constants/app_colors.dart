@@ -24,6 +24,9 @@ class AppColors {
   /// Màu vàng chuối: Vui vẻ, ấm áp, dùng cho Streak, Huy hiệu, Sao (Secondary Action)
   static const Color secondary = Color(0xFFFACC15);
 
+  /// Viền vàng nâu tương phản trên nền vàng, dịu hơn xanh than.
+  static const Color secondaryOutline = Color(0xFF8C6500);
+
   /// Màu tím mộng mơ: Kích thích trí tưởng tượng, dùng cho Flash Anzan (Accent / Tertiary)
   static const Color accentPurple = Color(0xFF8B5CF6);
   static const Color tertiary = accentPurple;

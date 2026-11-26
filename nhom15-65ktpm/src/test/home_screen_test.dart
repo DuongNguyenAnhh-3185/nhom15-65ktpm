@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:soroban_kids_app/core/constants/app_colors.dart';
 import 'package:soroban_kids_app/core/services/audio_service.dart';
 import 'package:soroban_kids_app/core/services/storage_service.dart';
 import 'package:soroban_kids_app/features/1_abacus_engine/presentation/widgets/finger_math_board_widget.dart';
@@ -260,6 +261,16 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
 
     expect(find.byType(LessonPlayScreen), findsOneWidget);
+    final checkButton = find.widgetWithText(
+      FilledButton,
+      'KIỂM TRA BÀN TAY',
+    );
+    final checkIcon = find.descendant(
+      of: checkButton,
+      matching: find.byIcon(Icons.check_rounded),
+    );
+    expect(
+        IconTheme.of(tester.element(checkIcon)).color, AppColors.onSecondary);
     expect(tester.takeException(), isNull);
   });
 
@@ -274,6 +285,31 @@ void main() {
       expect(find.byType(Image), findsNothing);
       expect(tester.takeException(), isNull);
     }
+  });
+
+  testWidgets('Panda bubble scales down on narrow phone screens',
+      (WidgetTester tester) async {
+    final previousSize = tester.view.physicalSize;
+    final previousDevicePixelRatio = tester.view.devicePixelRatio;
+    addTearDown(() {
+      tester.view.physicalSize = previousSize;
+      tester.view.devicePixelRatio = previousDevicePixelRatio;
+    });
+    tester.view.physicalSize = const Size(320, 568);
+    tester.view.devicePixelRatio = 1;
+
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: MascotBubbleWidget(
+          speechText:
+              'Chào bé Linh! Hôm nay mình cùng chơi toán nhé, cố gắng lên nào!',
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(tester.getSize(find.byType(PandaMascot)), const Size(58, 58));
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('Panda expression changes animate between existing expressions',

@@ -46,10 +46,22 @@ class _KidButtonState extends State<KidButton> {
         : widget.width! < AppDimensions.minTouchSize
             ? AppDimensions.minTouchSize
             : widget.width;
+    final isSecondaryButton = widget.backgroundColor == AppColors.secondary;
     final foregroundColor = widget.textColor ??
-        (widget.backgroundColor.computeLuminance() > 0.179
-            ? Colors.black
-            : Colors.white);
+        (isSecondaryButton
+            ? AppColors.onSecondary
+            : widget.backgroundColor.computeLuminance() > 0.179
+                ? Colors.black
+                : Colors.white);
+    final borderColor =
+        isSecondaryButton ? AppColors.secondaryOutline : foregroundColor;
+    final borderWidth = widget.isSelected
+        ? 2.5
+        : isSecondaryButton
+            ? 1.5
+            : 2.0;
+    final shadowColor =
+        isSecondaryButton ? AppColors.secondaryOutline : foregroundColor;
     final horizontalPadding = widget.label == null ? 0.0 : 20.0;
 
     return Semantics(
@@ -60,14 +72,32 @@ class _KidButtonState extends State<KidButton> {
       child: ExcludeSemantics(
         child: Material(
           color: widget.backgroundColor,
-          elevation: widget.isSelected ? 5 : 3,
+          elevation: widget.isSelected
+              ? 7
+              : isSecondaryButton
+                  ? 3
+                  : 5,
           borderRadius: borderRadius,
           child: Container(
             decoration: BoxDecoration(
               borderRadius: borderRadius,
-              border: widget.isSelected
-                  ? Border.all(color: Colors.white, width: 2.5)
-                  : null,
+              border: Border.all(
+                color: widget.isSelected && !isSecondaryButton
+                    ? Colors.white
+                    : borderColor,
+                width: borderWidth,
+              ),
+              boxShadow: widget.isSelected
+                  ? null
+                  : [
+                      BoxShadow(
+                        color: shadowColor.withValues(
+                          alpha: isSecondaryButton ? 0.12 : 0.3,
+                        ),
+                        blurRadius: isSecondaryButton ? 2 : 0,
+                        offset: Offset(0, isSecondaryButton ? 2 : 3),
+                      ),
+                    ],
             ),
             child: InkWell(
               onTap: () {

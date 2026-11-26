@@ -502,7 +502,7 @@ class _LessonPlayScreenState extends State<LessonPlayScreen>
                                       ),
                                       style: FilledButton.styleFrom(
                                         backgroundColor: AppColors.secondary,
-                                        foregroundColor: Colors.white,
+                                        foregroundColor: AppColors.onSecondary,
                                         padding: const EdgeInsets.symmetric(
                                             vertical: 17),
                                       ),
