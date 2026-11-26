@@ -49,7 +49,7 @@
   - Phân hệ Phụ huynh (Parental Gate, Báo cáo thời lượng học tập trong tuần).
 - 3.2. Kiến trúc mã nguồn Feature-First Clean Architecture:
   - Tầng `core/`: Hạ tầng dùng chung (Theme, AudioService, Text-to-Speech).
-  - Tầng `shared/`: Giao ước dữ liệu Data Contract (`ChildProfile`, `SorobanQuestion`, `AttemptLog`).
+  - Tầng `shared/`: Giao ước dữ liệu Data Contract (`ChildProfile`, `FingerMathQuestion`, `AttemptLog`).
   - Tầng `features/`: 4 module phát triển độc lập theo ma trận phân công 4 thành viên.
 - 3.3. Thiết kế chi tiết các thuật toán cốt lõi:
   - Thuật toán mô phỏng trạng thái 2 bàn tay Finger Math (`FingerHandState`).

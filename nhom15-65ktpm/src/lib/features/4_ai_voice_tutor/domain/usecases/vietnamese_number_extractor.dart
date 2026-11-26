@@ -178,7 +178,8 @@ class VietnameseNumberExtractor {
         normalized.contains(' -')) {
       isNegative = true;
       normalized = normalized
-          .replaceAll(RegExp(r'\b(?:âm|trừ)\b'), ' ')
+          .replaceAll('âm ', ' ')
+          .replaceAll('trừ ', ' ')
           .replaceAll('-', ' ');
     }
 
