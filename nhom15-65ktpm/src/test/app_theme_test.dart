@@ -32,6 +32,22 @@ void main() {
         greaterThanOrEqualTo(4.5));
   });
 
+  test('dedicated button fills keep readable dark text', () {
+    for (final fill in [
+      AppColors.buttonPrimary,
+      AppColors.buttonSecondary,
+      AppColors.buttonPurple,
+      AppColors.buttonMint,
+      AppColors.buttonNeutral,
+    ]) {
+      expect(
+        _contrastRatio(fill, AppColors.textDark),
+        greaterThanOrEqualTo(4.5),
+        reason: 'Button fill $fill must keep text readable',
+      );
+    }
+  });
+
   test('progress and status graphics meet WCAG non-text contrast', () {
     final progressTrack = Color.alphaBlend(
       AppColors.surface.withValues(alpha: 0.9),
@@ -111,6 +127,22 @@ void main() {
     expect(AppDimensions.minTouchSize, greaterThanOrEqualTo(48.0));
     final elevatedStyle = theme.elevatedButtonTheme.style;
     expect(elevatedStyle, isNotNull);
+    expect(
+      elevatedStyle!.backgroundColor!.resolve({}),
+      AppColors.buttonPrimary,
+    );
+    expect(
+      elevatedStyle.foregroundColor!.resolve({}),
+      AppColors.textDark,
+    );
+    expect(
+      _contrastRatio(AppColors.buttonPrimary, AppColors.textDark),
+      greaterThanOrEqualTo(4.5),
+    );
+    expect(
+      theme.filledButtonTheme.style!.backgroundColor!.resolve({}),
+      AppColors.buttonPrimary,
+    );
 
     // Card, Dialog & BottomSheet themes
     expect(theme.cardTheme.color, AppColors.cardBg);

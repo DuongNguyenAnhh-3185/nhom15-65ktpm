@@ -86,7 +86,37 @@ void main() {
     }
   });
 
-  testWidgets('KidButton has a raised high-contrast border and shadow',
+  testWidgets('KidButton uses a light fill and soft elevation',
+      (WidgetTester tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: KidButton(
+            onPressed: () {},
+            label: 'Bắt đầu',
+            icon: Icons.play_arrow_rounded,
+          ),
+        ),
+      ),
+    );
+
+    final material = tester.widget<Material>(
+      find.descendant(
+        of: find.byType(KidButton),
+        matching: find.byType(Material),
+      ),
+    );
+    final icon = tester.widget<Icon>(
+      find.byIcon(Icons.play_arrow_rounded),
+    );
+    expect(material.color, AppColors.buttonPrimary);
+    expect(icon.color, AppColors.textDark);
+    expect(_contrastRatio(AppColors.buttonPrimary, AppColors.textDark),
+        greaterThanOrEqualTo(4.5));
+    expect(material.elevation, 1.5);
+  });
+
+  testWidgets('KidButton keeps a subtle outline and shadow',
       (WidgetTester tester) async {
     await tester.pumpWidget(
       MaterialApp(
@@ -116,14 +146,14 @@ void main() {
     final border = boxDecoration.border! as Border;
     final shadow = boxDecoration.boxShadow!.single;
 
-    expect(material.elevation, 3);
+    expect(material.elevation, 1.5);
     expect(border.top.color, AppColors.secondaryOutline);
     expect(border.bottom.color, AppColors.secondaryOutline);
-    expect(border.top.width, 1.5);
-    expect(border.bottom.width, 1.5);
+    expect(border.top.width, 1.25);
+    expect(border.bottom.width, 1.25);
     expect(boxDecoration.boxShadow, hasLength(1));
-    expect(shadow.color, AppColors.secondaryOutline.withValues(alpha: 0.12));
-    expect(shadow.blurRadius, 2);
+    expect(shadow.color, AppColors.textDark.withValues(alpha: 0.08));
+    expect(shadow.blurRadius, 5);
     expect(shadow.offset, const Offset(0, 2));
     expect(
       _contrastRatio(AppColors.secondary, AppColors.secondaryOutline),

@@ -20,7 +20,7 @@ class KidButton extends StatefulWidget {
     this.label,
     this.semanticLabel,
     this.icon,
-    this.backgroundColor = AppColors.primary,
+    this.backgroundColor = AppColors.buttonPrimary,
     this.textColor,
     this.width,
     this.height = AppDimensions.buttonHeight,
@@ -46,22 +46,20 @@ class _KidButtonState extends State<KidButton> {
         : widget.width! < AppDimensions.minTouchSize
             ? AppDimensions.minTouchSize
             : widget.width;
-    final isSecondaryButton = widget.backgroundColor == AppColors.secondary;
     final foregroundColor = widget.textColor ??
-        (isSecondaryButton
-            ? AppColors.onSecondary
-            : widget.backgroundColor.computeLuminance() > 0.179
-                ? Colors.black
-                : Colors.white);
-    final borderColor =
-        isSecondaryButton ? AppColors.secondaryOutline : foregroundColor;
-    final borderWidth = widget.isSelected
-        ? 2.5
-        : isSecondaryButton
-            ? 1.5
-            : 2.0;
-    final shadowColor =
-        isSecondaryButton ? AppColors.secondaryOutline : foregroundColor;
+        (widget.backgroundColor == AppColors.primary
+            ? AppColors.onPrimary
+            : widget.backgroundColor == AppColors.secondary
+                ? AppColors.onSecondary
+                : widget.backgroundColor == AppColors.accentPurple
+                    ? AppColors.onAccentPurple
+                    : widget.backgroundColor.computeLuminance() > 0.179
+                        ? AppColors.textDark
+                        : Colors.white);
+    final borderColor = widget.isSelected
+        ? AppColors.textDark
+        : _outlineColor(widget.backgroundColor);
+    final borderWidth = widget.isSelected ? 2.5 : 1.25;
     final horizontalPadding = widget.label == null ? 0.0 : 20.0;
 
     return Semantics(
@@ -72,30 +70,22 @@ class _KidButtonState extends State<KidButton> {
       child: ExcludeSemantics(
         child: Material(
           color: widget.backgroundColor,
-          elevation: widget.isSelected
-              ? 7
-              : isSecondaryButton
-                  ? 3
-                  : 5,
+          elevation: widget.isSelected ? 3 : 1.5,
           borderRadius: borderRadius,
           child: Container(
             decoration: BoxDecoration(
               borderRadius: borderRadius,
               border: Border.all(
-                color: widget.isSelected && !isSecondaryButton
-                    ? Colors.white
-                    : borderColor,
+                color: borderColor,
                 width: borderWidth,
               ),
               boxShadow: widget.isSelected
                   ? null
                   : [
                       BoxShadow(
-                        color: shadowColor.withValues(
-                          alpha: isSecondaryButton ? 0.12 : 0.3,
-                        ),
-                        blurRadius: isSecondaryButton ? 2 : 0,
-                        offset: Offset(0, isSecondaryButton ? 2 : 3),
+                        color: AppColors.textDark.withValues(alpha: 0.08),
+                        blurRadius: 5,
+                        offset: const Offset(0, 2),
                       ),
                     ],
             ),
@@ -163,5 +153,27 @@ class _KidButtonState extends State<KidButton> {
         ),
       ),
     );
+  }
+
+  Color _outlineColor(Color backgroundColor) {
+    if (backgroundColor == AppColors.buttonPrimary) {
+      return AppColors.buttonPrimaryOutline;
+    }
+    if (backgroundColor == AppColors.buttonSecondary) {
+      return AppColors.buttonSecondaryOutline;
+    }
+    if (backgroundColor == AppColors.buttonPurple) {
+      return AppColors.buttonPurpleOutline;
+    }
+    if (backgroundColor == AppColors.buttonMint) {
+      return AppColors.buttonMintOutline;
+    }
+    if (backgroundColor == AppColors.buttonNeutral) {
+      return AppColors.buttonNeutralOutline;
+    }
+    if (backgroundColor == AppColors.secondary) {
+      return AppColors.secondaryOutline;
+    }
+    return AppColors.textDark.withValues(alpha: 0.35);
   }
 }

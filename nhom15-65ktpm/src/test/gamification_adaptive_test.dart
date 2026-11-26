@@ -2,7 +2,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:soroban_kids_app/core/services/gamification_service.dart';
 import 'package:soroban_kids_app/core/services/reminder_service.dart';
 import 'package:soroban_kids_app/features/2_gamification_parent/domain/streak_calculator.dart';
-import 'package:soroban_kids_app/features/2_gamification_parent/presentation/widgets/parental_gate_dialog.dart';
 import 'package:soroban_kids_app/features/4_ai_voice_tutor/domain/engine/adaptive_tutor_engine.dart';
 import 'package:soroban_kids_app/shared/entities/attempt_log.dart';
 import 'package:soroban_kids_app/shared/entities/child_profile.dart';
@@ -359,13 +358,6 @@ void main() {
         ),
         isFalse,
       );
-    });
-
-    test('ParentalGate: Sinh câu hỏi toán chữ tiếng Việt ngẫu nhiên', () {
-      final question = VerbalMathQuestion.generate();
-      expect(question.questionText.contains('bằng mấy?'), isTrue);
-      expect(question.options.contains(question.answer), isTrue);
-      expect(question.options.length, 4);
     });
   });
 }

@@ -8,6 +8,7 @@ import 'package:soroban_kids_app/core/services/audio_service.dart';
 import 'package:soroban_kids_app/core/services/storage_service.dart';
 import 'package:soroban_kids_app/features/1_abacus_engine/presentation/widgets/finger_math_board_widget.dart';
 import 'package:soroban_kids_app/features/2_gamification_parent/presentation/widgets/parental_gate_dialog.dart';
+import 'package:soroban_kids_app/features/2_gamification_parent/presentation/screens/parent_dashboard_screen.dart';
 import 'package:soroban_kids_app/features/3_lessons_flash_anzan/presentation/screens/flash_anzan_screen.dart';
 import 'package:soroban_kids_app/features/3_lessons_flash_anzan/presentation/screens/lesson_play_screen.dart';
 import 'package:soroban_kids_app/features/2_gamification_parent/presentation/screens/home_screen.dart';
@@ -39,6 +40,39 @@ class _TestAudioService implements AudioService {
 
   @override
   Future<void> speak(String text) async {}
+}
+
+int _gateAnswer(WidgetTester tester) {
+  const numberWords = [
+    'không',
+    'một',
+    'hai',
+    'ba',
+    'bốn',
+    'năm',
+    'sáu',
+    'bảy',
+    'tám',
+    'chín',
+    'mười',
+    'mười một',
+    'mười hai',
+    'mười ba',
+    'mười bốn',
+    'mười lăm',
+    'mười sáu',
+    'mười bảy',
+    'mười tám',
+    'mười chín',
+    'hai mươi',
+  ];
+  final questionText =
+      tester.widget<Text>(find.textContaining('bằng mấy?')).data!;
+  final match = RegExp(r'^(.+) (cộng|trừ) (.+) bằng mấy\?$')
+      .firstMatch(questionText.toLowerCase())!;
+  final first = numberWords.indexOf(match.group(1)!);
+  final second = numberWords.indexOf(match.group(3)!);
+  return match.group(2) == 'cộng' ? first + second : first - second;
 }
 
 void main() {
@@ -242,6 +276,37 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(ParentalGateDialog), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
+      'ParentalGate stays closed on wrong answer and opens on correct answer',
+      (WidgetTester tester) async {
+    await tester.pumpWidget(const MaterialApp(home: HomeScreen()));
+    await tester.pumpAndSettle();
+
+    await tester.ensureVisible(find.text('Phụ huynh'));
+    await tester.tap(find.text('Phụ huynh'));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('bằng mấy?'), findsOneWidget);
+    final answer = _gateAnswer(tester);
+
+    await tester.enterText(find.byType(TextField), '9999');
+    await tester.tap(find.text('Xác nhận'));
+    await tester.pump();
+
+    expect(find.byType(ParentalGateDialog), findsOneWidget);
+    expect(
+        find.text('Kết quả chưa chính xác. Vui lòng thử lại.'), findsOneWidget);
+    expect(find.byType(ParentDashboardScreen), findsNothing);
+
+    await tester.enterText(find.byType(TextField), '$answer');
+    await tester.tap(find.text('Xác nhận'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(ParentalGateDialog), findsNothing);
+    expect(find.byType(ParentDashboardScreen), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 

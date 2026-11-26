@@ -36,6 +36,20 @@ class AppColors {
   static const Color accentOrange = primary;
 
   // ===========================================================================
+  // Button surfaces: brighter fills with dark, readable foregrounds
+  // ===========================================================================
+  static const Color buttonPrimary = Color(0xFFFFC7B7);
+  static const Color buttonPrimaryOutline = Color(0xFF9D3A27);
+  static const Color buttonSecondary = Color(0xFFFFE792);
+  static const Color buttonSecondaryOutline = Color(0xFF8C6500);
+  static const Color buttonPurple = Color(0xFFE0D2FF);
+  static const Color buttonPurpleOutline = Color(0xFF583B8F);
+  static const Color buttonMint = Color(0xFFC9EBD8);
+  static const Color buttonMintOutline = Color(0xFF286B4B);
+  static const Color buttonNeutral = Color(0xFFE8EEF5);
+  static const Color buttonNeutralOutline = Color(0xFF65758B);
+
+  // ===========================================================================
   // 2. MÀU TƯƠNG PHẢN CHO NỀN CHỦ ĐẠO (Accessible Foregrounds - WCAG AA >= 4.5:1)
   // ===========================================================================
   /// Chữ/Icon trên nền Cam đất #E05638 (Luminance ratio >= 4.5:1)
