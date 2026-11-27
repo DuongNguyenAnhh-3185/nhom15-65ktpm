@@ -8,12 +8,28 @@ import '../../../../shared/entities/attempt_log.dart';
 import '../../../../shared/entities/badge_item.dart';
 import '../../../../shared/entities/child_profile.dart';
 import '../../../../shared/widgets/kid_badge_card.dart';
+import '../widgets/parental_gate_dialog.dart';
 
 class ParentDashboardScreen extends StatefulWidget {
-  const ParentDashboardScreen({super.key});
+  const ParentDashboardScreen._();
 
   @override
   State<ParentDashboardScreen> createState() => _ParentDashboardScreenState();
+}
+
+class ParentDashboardRoute {
+  const ParentDashboardRoute._();
+
+  static Future<void> open(BuildContext context) async {
+    final isAuthenticated = await ParentalGateDialog.authenticate(context);
+    if (!isAuthenticated || !context.mounted) return;
+
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute(
+        builder: (_) => const ParentDashboardScreen._(),
+      ),
+    );
+  }
 }
 
 class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
