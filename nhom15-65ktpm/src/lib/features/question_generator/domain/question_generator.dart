@@ -39,7 +39,7 @@ class QuestionGenerator {
     ArithmeticOperation? operation,
     QuestionType? questionType,
     int flashTermCount = 3,
-    int flashSpeedMs = 1200,
+    int flashSpeedMs = 2500,
   }) {
     switch (level) {
       case QuestionLevel.basic:
@@ -68,11 +68,11 @@ class QuestionGenerator {
         'Flash Anzan requires at least 2 numbers.',
       );
     }
-    if (flashSpeedMs < 500 || flashSpeedMs > 1500) {
+    if (flashSpeedMs < 1000 || flashSpeedMs > 2500) {
       throw ArgumentError.value(
         flashSpeedMs,
         'flashSpeedMs',
-        'Flash speed must be between 500 and 1500 milliseconds.',
+        'Flash speed must be between 1000 and 2500 milliseconds.',
       );
     }
 

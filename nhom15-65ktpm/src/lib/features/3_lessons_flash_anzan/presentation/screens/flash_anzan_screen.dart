@@ -57,7 +57,7 @@ class _FlashAnzanScreenState extends State<FlashAnzanScreen> {
   final StorageService _storageService = sl<StorageService>();
 
   FlashState _state = FlashState.idle;
-  int _flashSpeedMs = 1200; // Tốc độ chớp số thích ứng
+  int _flashSpeedMs = 2500; // Tốc độ khởi đầu thân thiện với trẻ nhỏ.
   late final AdaptiveLearningEngine _adaptiveEngine;
   List<int> _numbers = [];
   List<_FlashStep> _flashSteps = [];
@@ -95,9 +95,15 @@ class _FlashAnzanScreenState extends State<FlashAnzanScreen> {
   Future<void> _loadProfileSettings() async {
     final profile = await _storageService.getChildProfile();
     if (!mounted) return;
+    final flashLevel = profile.flashAnzanLevel.clamp(1, 3).toInt();
+    final minimumSpeed = flashLevel >= 3 ? 1000 : 2000;
+    final flashSpeed = profile.flashSpeedMs.clamp(minimumSpeed, 2500).toInt();
     setState(() {
-      _flashSpeedMs = profile.flashSpeedMs;
-      _adaptiveEngine.updateConfig(flashDurationMs: profile.flashSpeedMs);
+      _flashSpeedMs = flashSpeed;
+      _adaptiveEngine.updateConfig(
+        difficulty: flashLevel,
+        flashDurationMs: flashSpeed,
+      );
     });
   }
 
@@ -257,18 +263,62 @@ class _FlashAnzanScreenState extends State<FlashAnzanScreen> {
     }
 
     // 3. Gia sư thích ứng điều chỉnh tốc độ Flash Anzan theo cửa sổ trượt
+    final currentFlashLevel = _adaptiveEngine.state.currentDifficulty;
     final attempt = AttemptResult(
       isCorrect: _isCorrect,
       responseTimeMs: responseTime,
       mode: PracticeMode.flashAnzan,
+      difficultyLevel: currentFlashLevel,
       flashDurationMs: _flashSpeedMs,
     );
     final decision = _adaptiveEngine.processAttempt(attempt);
+    final flashLevel = decision.recommendedLevel.clamp(1, 3).toInt();
+    var flashSpeed = _flashSpeedMs;
+
+    if (decision.adaptationAction == AdaptationAction.levelUp) {
+      if (flashLevel >= 3) {
+        flashSpeed = max(
+          _flashSpeedMs - AdaptiveLearningEngine.speedStepMs,
+          1000,
+        );
+      } else {
+        // Keep levels 1 and 2 slow; start speeding up only from level 3.
+        flashSpeed = _flashSpeedMs.clamp(2000, 2500).toInt();
+      }
+    } else if (decision.adaptationAction == AdaptationAction.levelDown) {
+      flashSpeed = min(
+        _flashSpeedMs + AdaptiveLearningEngine.speedStepMs,
+        2500,
+      );
+      if (flashLevel < 3) flashSpeed = max(flashSpeed, 2000);
+    }
+
+    _adaptiveEngine.updateConfig(
+      difficulty: flashLevel,
+      flashDurationMs: flashSpeed,
+    );
+    await _storageService.saveChildProfile(
+      gamificationResult.updatedProfile.copyWith(
+        flashAnzanLevel: flashLevel,
+        flashSpeedMs: flashSpeed,
+      ),
+    );
 
     if (!mounted) return;
     setState(() {
-      _flashSpeedMs = decision.recommendedSpeedMs;
-      _adaptiveNote = decision.message.isNotEmpty ? decision.message : decision.reason;
+      _flashSpeedMs = flashSpeed;
+      _adaptiveNote = switch (decision.adaptationAction) {
+        AdaptationAction.levelUp when flashLevel < 3 =>
+          'Bé lên cấp $flashLevel rồi! Cùng luyện chắc tay ở nhịp chậm nhé!',
+        AdaptationAction.levelUp when currentFlashLevel < 3 =>
+          'Bé lên cấp 3! Thời gian chớp số sẽ rút ngắn dần khi bé làm tốt nhé!',
+        AdaptationAction.levelUp =>
+          'Bé làm tốt lắm! Nhịp chớp số giảm còn ${flashSpeed}ms nhé!',
+        AdaptationAction.levelDown =>
+          'Mình về cấp $flashLevel và đặt nhịp chớp ${flashSpeed}ms nhé!',
+        AdaptationAction.maintain =>
+          decision.message.isNotEmpty ? decision.message : decision.reason,
+      };
     });
   }
 
@@ -276,7 +326,7 @@ class _FlashAnzanScreenState extends State<FlashAnzanScreen> {
     if (_numbers.isEmpty) return '';
     final expression = StringBuffer('${_numbers.first}');
     for (final number in _numbers.skip(1)) {
-      expression..write(number < 0 ? ' - ${number.abs()}' : ' + $number');
+      expression.write(number < 0 ? ' - ${number.abs()}' : ' + $number');
     }
     return expression.toString();
   }
@@ -459,7 +509,7 @@ class _FlashAnzanScreenState extends State<FlashAnzanScreen> {
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Text(
-                        'Tốc độ chớp số AI: ${_flashSpeedMs}ms / nhịp',
+                        'Cấp ${_adaptiveEngine.state.currentDifficulty} • ${_flashSpeedMs}ms / nhịp',
                         style: const TextStyle(
                           color: AppColors.accentPurple,
                           fontWeight: FontWeight.w800,
