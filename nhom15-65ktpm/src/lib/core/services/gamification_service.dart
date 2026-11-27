@@ -15,28 +15,42 @@ class GamificationResult {
 }
 
 class GamificationService {
+  static List<BadgeItem> unlockedBadgesFor(ChildProfile profile) {
+    final unlockedIds = profile.unlockedBadgeIds.toSet();
+    return BadgeDefinitions.allBadges
+        .where((badge) => unlockedIds.contains(badge.id))
+        .toList(growable: false);
+  }
+
+  static List<BadgeItem> lockedBadgesFor(ChildProfile profile) {
+    final unlockedIds = profile.unlockedBadgeIds.toSet();
+    return BadgeDefinitions.allBadges
+        .where((badge) => !unlockedIds.contains(badge.id))
+        .toList(growable: false);
+  }
+
   /// Cập nhật chuỗi Streak và kiểm tra mở khóa huy hiệu sau mỗi bài làm
   static GamificationResult processLessonCompletion({
     required ChildProfile profile,
     required List<AttemptLog> allLogs,
     DateTime? now,
   }) {
-    final today = now ?? DateTime.now();
-    DateTime? lastActive;
-    if (profile.lastActiveDate.isNotEmpty) {
-      try {
-        lastActive = DateTime.parse(profile.lastActiveDate);
-      } catch (_) {}
-    }
+    final completedAt = now ?? DateTime.now();
+    final localCompletedAt = completedAt.toLocal();
+    final lastActive = DateTime.tryParse(profile.lastActiveDate);
+    final lastRecordedCompletion =
+        lastActive != null && completedAt.isBefore(lastActive)
+            ? lastActive
+            : completedAt;
 
     final newStreak = StreakCalculator.updateStreak(
       currentStreak: profile.streakCount,
       lastActiveDate: lastActive,
-      today: today,
+      today: localCompletedAt,
     );
 
     final newLongest = max(profile.longestStreak, newStreak);
-    final todayDateStr = StreakCalculator.formatDate(today);
+    final todayDateStr = StreakCalculator.formatDate(localCompletedAt);
 
     // Kiểm tra danh sách huy hiệu
     final currentUnlocked = Set<String>.from(profile.unlockedBadgeIds);
@@ -49,7 +63,7 @@ class GamificationService {
 
       switch (badge.id) {
         case 'starter_star':
-          shouldUnlock = allLogs.any((l) => l.isCorrect);
+          shouldUnlock = allLogs.isNotEmpty;
           break;
         case 'streak_3_days':
           shouldUnlock = newStreak >= 3;
@@ -70,13 +84,15 @@ class GamificationService {
               l.isCorrect && l.responseTimeMs > 0 && l.responseTimeMs <= 1500);
           break;
         case 'voice_explorer':
-          shouldUnlock = allLogs.any(
-              (l) => l.isCorrect && l.answeredVia.toLowerCase().contains('voice'));
+          shouldUnlock = allLogs.any((l) =>
+              l.isCorrect && l.answeredVia.toLowerCase().contains('voice'));
           break;
       }
 
       if (shouldUnlock) {
-        final unlockedBadge = badge.copyWith(unlockedAt: today.toIso8601String());
+        final unlockedBadge = badge.copyWith(
+          unlockedAt: completedAt.toUtc().toIso8601String(),
+        );
         newlyUnlocked.add(unlockedBadge);
         currentUnlocked.add(badge.id);
       }
@@ -85,7 +101,7 @@ class GamificationService {
     final updatedProfile = profile.copyWith(
       streakCount: newStreak,
       longestStreak: newLongest,
-      lastActiveDate: today.toIso8601String(),
+      lastActiveDate: lastRecordedCompletion.toUtc().toIso8601String(),
       lastCompletedDate: todayDateStr,
       unlockedBadgeIds: currentUnlocked.toList(),
     );

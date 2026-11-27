@@ -22,10 +22,14 @@ dependencies:
   # 3. Audio & Voice Recognition
   speech_to_text: ^7.0.0
   flutter_tts: ^4.2.0
+  just_audio: ^0.10.6
 
   # 4. UI/UX, Charts & Typography
   fl_chart: ^0.70.2
   google_fonts: ^6.2.1
+
+  # 5. Cloud Backend & Firebase
+  firebase_core: ^3.6.0
 
 dev_dependencies:
   flutter_test:

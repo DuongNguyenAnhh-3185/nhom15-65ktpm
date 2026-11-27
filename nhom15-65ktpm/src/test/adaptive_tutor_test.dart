@@ -373,6 +373,16 @@ void main() {
   });
 
   group('Streak Calculator Tests (Module 2 - Duy Thái)', () {
+    test('Bắt đầu streak từ 1 khi hoàn thành bài học đầu tiên', () {
+      final streak = StreakCalculator.updateStreak(
+        currentStreak: 0,
+        lastActiveDate: null,
+        today: DateTime(2026, 11, 14, 8),
+      );
+
+      expect(streak, 1);
+    });
+
     test('Duy trì streak khi học tiếp tục vào ngày kế tiếp', () {
       final yesterday = DateTime(2026, 11, 13);
       final today = DateTime(2026, 11, 14);
@@ -384,6 +394,32 @@ void main() {
       );
 
       expect(streak, 4);
+    });
+
+    test('Tăng streak khi lần học tiếp theo cách đúng 24 giờ', () {
+      final today = DateTime(2026, 11, 14, 8);
+      final exactlyOneDayAgo = today.subtract(const Duration(hours: 24));
+
+      final streak = StreakCalculator.updateStreak(
+        currentStreak: 3,
+        lastActiveDate: exactlyOneDayAgo.toUtc(),
+        today: today,
+      );
+
+      expect(streak, 4);
+    });
+
+    test('Reset về 1 khi bỏ lỡ hơn 24 giờ dù vẫn là ngày kế tiếp', () {
+      final yesterday = DateTime(2026, 11, 13, 7, 59, 59);
+      final today = DateTime(2026, 11, 14, 8);
+
+      final streak = StreakCalculator.updateStreak(
+        currentStreak: 3,
+        lastActiveDate: yesterday,
+        today: today,
+      );
+
+      expect(streak, 1);
     });
 
     test('Giữ nguyên streak khi bé học nhiều lần trong cùng 1 ngày', () {
@@ -410,6 +446,19 @@ void main() {
       );
 
       expect(streak, 1);
+    });
+
+    test('Không reset streak nếu giờ thiết bị lùi trước lần học gần nhất', () {
+      final lastActive = DateTime(2026, 11, 14, 10);
+      final now = DateTime(2026, 11, 14, 8);
+
+      final streak = StreakCalculator.updateStreak(
+        currentStreak: 5,
+        lastActiveDate: lastActive,
+        today: now,
+      );
+
+      expect(streak, 5);
     });
   });
 }

@@ -1,5 +1,5 @@
 class StreakCalculator {
-  /// Tính toán chuỗi Streak dựa trên ngày hoạt động gần nhất
+  /// Updates a streak once per local calendar day, resetting after a 24-hour gap.
   static int updateStreak({
     required int currentStreak,
     required DateTime? lastActiveDate,
@@ -9,36 +9,34 @@ class StreakCalculator {
       return 1;
     }
 
-    final lastDateOnly = DateTime(
-      lastActiveDate.year,
-      lastActiveDate.month,
-      lastActiveDate.day,
-    );
-    final todayDateOnly = DateTime(
-      today.year,
-      today.month,
-      today.day,
-    );
+    final lastLocal = lastActiveDate.toLocal();
+    final todayLocal = today.toLocal();
+    final elapsed = todayLocal.difference(lastLocal);
 
-    final differenceInDays = todayDateOnly.difference(lastDateOnly).inDays;
-
-    if (differenceInDays == 0) {
-      // Đã học hôm nay rồi, giữ nguyên streak
+    if (elapsed.isNegative) {
       return currentStreak > 0 ? currentStreak : 1;
-    } else if (differenceInDays == 1) {
-      // Học ngày kế tiếp liên tục, tăng 1 ngày streak
-      return currentStreak + 1;
-    } else {
-      // Bị gián đoạn trên 1 ngày (diffDays >= 2), reset streak về 1
+    }
+
+    if (elapsed > const Duration(hours: 24)) {
       return 1;
     }
+
+    final completedToday = lastLocal.year == todayLocal.year &&
+        lastLocal.month == todayLocal.month &&
+        lastLocal.day == todayLocal.day;
+    if (completedToday) {
+      return currentStreak > 0 ? currentStreak : 1;
+    }
+
+    return currentStreak > 0 ? currentStreak + 1 : 1;
   }
 
   /// Định dạng ngày YYYY-MM-DD theo múi giờ địa phương
   static String formatDate(DateTime date) {
-    final y = date.year.toString().padLeft(4, '0');
-    final m = date.month.toString().padLeft(2, '0');
-    final d = date.day.toString().padLeft(2, '0');
+    final localDate = date.toLocal();
+    final y = localDate.year.toString().padLeft(4, '0');
+    final m = localDate.month.toString().padLeft(2, '0');
+    final d = localDate.day.toString().padLeft(2, '0');
     return '$y-$m-$d';
   }
 
