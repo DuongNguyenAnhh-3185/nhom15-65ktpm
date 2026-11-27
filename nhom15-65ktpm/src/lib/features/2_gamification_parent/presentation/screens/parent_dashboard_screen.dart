@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:fl_chart/fl_chart.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/services/reminder_service.dart';
@@ -389,6 +390,12 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
       0,
       (maximum, count) => count > maximum ? count : maximum,
     );
+    final chartMaximum = maximumAttempts == 0
+        ? 1.0
+        : (maximumAttempts + 1).toDouble();
+    final gridInterval = maximumAttempts < 3
+        ? 1.0
+        : (maximumAttempts / 3).ceilToDouble();
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -408,48 +415,111 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
             style: Theme.of(context).textTheme.titleSmall,
           ),
           const SizedBox(height: 16),
-          SizedBox(
-            height: 132,
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: List.generate(weekdayLabels.length, (index) {
-                final count = statistics.attemptsByWeekday[index];
-                final barHeight =
-                    count == 0 ? 3.0 : 88 * count / maximumAttempts;
-
-                return Expanded(
-                  child: Semantics(
-                    label: '${weekdayLabels[index]}: $count lượt làm',
-                    child: Column(
-                      children: [
-                        Text(
-                          '$count',
-                          style: Theme.of(context).textTheme.labelSmall,
-                        ),
-                        const SizedBox(height: 6),
-                        Expanded(
-                          child: Align(
-                            alignment: Alignment.bottomCenter,
-                            child: Container(
-                              width: 18,
-                              height: barHeight,
-                              decoration: BoxDecoration(
-                                color: Theme.of(context).colorScheme.primary,
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                            ),
+          Semantics(
+            label: 'Biểu đồ số câu hỏi đã làm trong 7 ngày gần nhất',
+            child: SizedBox(
+              height: 190,
+              child: BarChart(
+                BarChartData(
+                  minY: 0,
+                  maxY: chartMaximum,
+                  alignment: BarChartAlignment.spaceAround,
+                  barTouchData: BarTouchData(
+                    enabled: true,
+                    touchTooltipData: BarTouchTooltipData(
+                      fitInsideHorizontally: true,
+                      fitInsideVertically: true,
+                      getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                        return BarTooltipItem(
+                          '${weekdayLabels[group.x]}: ${rod.toY.round()} câu',
+                          TextStyle(
+                            color: Theme.of(context).colorScheme.onPrimary,
+                            fontWeight: FontWeight.w600,
                           ),
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          weekdayLabels[index],
-                          style: Theme.of(context).textTheme.labelSmall,
-                        ),
-                      ],
+                        );
+                      },
                     ),
                   ),
-                );
-              }),
+                  titlesData: FlTitlesData(
+                    topTitles: const AxisTitles(
+                      sideTitles: SideTitles(showTitles: false),
+                    ),
+                    rightTitles: const AxisTitles(
+                      sideTitles: SideTitles(showTitles: false),
+                    ),
+                    leftTitles: const AxisTitles(
+                      sideTitles: SideTitles(showTitles: false),
+                    ),
+                    bottomTitles: AxisTitles(
+                      sideTitles: SideTitles(
+                        showTitles: true,
+                        reservedSize: 42,
+                        getTitlesWidget: (value, meta) {
+                          final index = value.toInt();
+                          if (index < 0 || index >= weekdayLabels.length) {
+                            return const SizedBox.shrink();
+                          }
+                          return SideTitleWidget(
+                            meta: meta,
+                            space: 8,
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  '${statistics.attemptsByWeekday[index]}',
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .labelSmall
+                                      ?.copyWith(
+                                        color: AppColors.chartAxisLabel,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                ),
+                                Text(
+                                  weekdayLabels[index],
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .labelSmall
+                                      ?.copyWith(
+                                        color: AppColors.chartAxisLabel,
+                                      ),
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+                  gridData: FlGridData(
+                    show: true,
+                    drawVerticalLine: false,
+                    horizontalInterval: gridInterval,
+                    getDrawingHorizontalLine: (_) => FlLine(
+                      color: AppColors.chartGrid,
+                      strokeWidth: 1,
+                    ),
+                  ),
+                  borderData: FlBorderData(show: false),
+                  barGroups: List.generate(weekdayLabels.length, (index) {
+                    final count = statistics.attemptsByWeekday[index];
+                    return BarChartGroupData(
+                      x: index,
+                      barRods: [
+                        BarChartRodData(
+                          toY: count.toDouble(),
+                          color: AppColors.chartPrimary,
+                          width: 18,
+                          borderRadius: const BorderRadius.vertical(
+                            top: Radius.circular(6),
+                          ),
+                        ),
+                      ],
+                    );
+                  }),
+                ),
+                duration: const Duration(milliseconds: 250),
+              ),
             ),
           ),
         ],

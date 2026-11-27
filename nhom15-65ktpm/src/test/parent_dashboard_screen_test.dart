@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:fl_chart/fl_chart.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:soroban_kids_app/core/services/storage_service.dart';
 import 'package:soroban_kids_app/features/2_gamification_parent/presentation/screens/parent_dashboard_screen.dart';
@@ -151,6 +152,15 @@ void main() {
     expect(find.text('2 / 3 câu đúng'), findsOneWidget);
     expect(find.text('Thống kê theo ngày trong tuần'), findsOneWidget);
     expect(find.text('Số lượt làm trong 7 ngày gần nhất'), findsOneWidget);
+    final chart = tester.widget<BarChart>(find.byType(BarChart));
+    expect(chart.data.barGroups, hasLength(DateTime.daysPerWeek));
+    expect(
+      chart.data.barGroups[DateTime.now().weekday - DateTime.monday]
+          .barRods
+          .single
+          .toY,
+      3,
+    );
     expect(find.text('Bốn cộng hai'), findsOneWidget);
     expect(find.text('Bảy trừ ba'), findsOneWidget);
     expect(find.text('Ba cộng ba'), findsOneWidget);
@@ -167,6 +177,14 @@ void main() {
     expect(
         find.text('Chưa có lịch sử làm bài theo bộ lọc này.'), findsOneWidget);
     expect(find.text('Chưa có dữ liệu trong 7 ngày gần nhất'), findsOneWidget);
+    final chart = tester.widget<BarChart>(find.byType(BarChart));
+    expect(chart.data.barGroups, hasLength(DateTime.daysPerWeek));
+    expect(
+      chart.data.barGroups.every(
+        (group) => group.barRods.single.toY == 0,
+      ),
+      isTrue,
+    );
     expect(tester.takeException(), isNull);
   });
 
@@ -209,6 +227,7 @@ void main() {
       tester.view.physicalSize = size;
       tester.view.devicePixelRatio = 1;
       await _openDashboard(tester);
+      expect(find.byType(BarChart), findsOneWidget);
       expect(find.text('Bảng điều khiển phụ huynh'), findsOneWidget);
       expect(find.text('Lịch sử làm bài chi tiết'), findsOneWidget);
       expect(tester.takeException(), isNull, reason: 'Viewport $size');
