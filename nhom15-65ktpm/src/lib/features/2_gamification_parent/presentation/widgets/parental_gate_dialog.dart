@@ -1,85 +1,25 @@
-import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../../../core/constants/app_colors.dart';
-import '../../../4_ai_voice_tutor/domain/usecases/vietnamese_number_extractor.dart';
-
-class VerbalMathQuestion {
-  final String questionText;
-  final int answer;
-  final List<int> options;
-
-  const VerbalMathQuestion({
-    required this.questionText,
-    required this.answer,
-    required this.options,
-  });
-
-  static const List<String> _words = [
-    'Không',
-    'Một',
-    'Hai',
-    'Ba',
-    'Bốn',
-    'Năm',
-    'Sáu',
-    'Bảy',
-    'Tám',
-    'Chín',
-    'Mười',
-    'Mười một',
-    'Mười hai',
-    'Mười ba',
-    'Mười bốn',
-    'Mười lăm',
-    'Mười sáu',
-  ];
-
-  static VerbalMathQuestion generate() {
-    final random = Random();
-    final isAdd = random.nextBool();
-
-    int a, b, ans;
-    String q;
-
-    if (isAdd) {
-      a = random.nextInt(7) + 3; // 3 - 9
-      b = random.nextInt(6) + 2; // 2 - 7
-      ans = a + b;
-      q = '${_words[a]} cộng ${_words[b].toLowerCase()} bằng mấy?';
-    } else {
-      a = random.nextInt(7) + 8; // 8 - 14
-      b = random.nextInt(5) + 2; // 2 - 6
-      ans = a - b;
-      q = '${_words[a]} trừ ${_words[b].toLowerCase()} bằng mấy?';
-    }
-
-    final optsSet = <int>{ans};
-    while (optsSet.length < 4) {
-      final delta = random.nextInt(5) - 2;
-      final fake = ans + (delta == 0 ? 1 : delta);
-      if (fake >= 0) optsSet.add(fake);
-    }
-    final options = optsSet.toList()..shuffle();
-
-    return VerbalMathQuestion(
-      questionText: q,
-      answer: ans,
-      options: options,
-    );
-  }
-}
+import '../../../../shared/widgets/kid_button.dart';
+import '../../domain/entities/verbal_math_question.dart';
+import '../../domain/usecases/generate_parental_gate_question.dart';
+import '../../domain/usecases/validate_parental_gate_answer.dart';
 
 class ParentalGateDialog extends StatefulWidget {
-  final VoidCallback onPass;
+  const ParentalGateDialog({super.key});
 
-  const ParentalGateDialog({super.key, required this.onPass});
+  static final _questionGenerator = GenerateParentalGateQuestion();
 
   static void show(BuildContext context, {required VoidCallback onPass}) {
-    showDialog(
+    showDialog<bool>(
       context: context,
-      barrierDismissible: true,
-      builder: (context) => ParentalGateDialog(onPass: onPass),
-    );
+      barrierDismissible: false,
+      useRootNavigator: true,
+      builder: (context) => const ParentalGateDialog(),
+    ).then((passed) {
+      if (passed == true) onPass();
+    });
   }
 
   @override
@@ -87,175 +27,278 @@ class ParentalGateDialog extends StatefulWidget {
 }
 
 class _ParentalGateDialogState extends State<ParentalGateDialog> {
-  late VerbalMathQuestion _question;
+  late final VerbalMathQuestion _question;
+  final ValidateParentalGateAnswer _answerValidator =
+      const ValidateParentalGateAnswer();
   final TextEditingController _controller = TextEditingController();
+  final FocusNode _answerFocusNode = FocusNode();
   String _error = '';
+  int? _selectedOption;
+  bool _allowPop = false;
 
   @override
   void initState() {
     super.initState();
-    _refreshQuestion();
+    _question = ParentalGateDialog._questionGenerator.generate();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _answerFocusNode.requestFocus();
+    });
   }
 
   @override
   void dispose() {
     _controller.dispose();
+    _answerFocusNode.dispose();
     super.dispose();
   }
 
-  void _refreshQuestion() {
+  void _onInputChanged(String value) {
+    final parsed = _answerValidator.parseInput(value);
     setState(() {
-      _question = VerbalMathQuestion.generate();
-      _controller.clear();
       _error = '';
+      _selectedOption = _question.options.contains(parsed) ? parsed : null;
     });
   }
 
   void _verifyValue(int value) {
-    if (value == _question.answer) {
-      Navigator.pop(context);
-      widget.onPass();
-    } else {
-      setState(() {
-        _error = 'Kết quả chưa chính xác! Hãy giải lại câu hỏi mới dưới đây:';
-        _question = VerbalMathQuestion.generate();
-        _controller.clear();
-      });
-    }
+    _controller.value = TextEditingValue(
+      text: '$value',
+      selection: TextSelection.collapsed(offset: '$value'.length),
+    );
+    setState(() {
+      _selectedOption = _question.options.contains(value) ? value : null;
+      _error = '';
+    });
+    _applyValidation(
+      _answerValidator.validateValue(question: _question, value: value),
+    );
   }
 
   void _verifyInput() {
-    final text = _controller.text.trim();
-    if (text.isEmpty) return;
+    _applyValidation(
+      _answerValidator.validateInput(
+        question: _question,
+        input: _controller.text,
+      ),
+    );
+  }
 
-    // Cho phép nhập số (ví dụ: "7") hoặc chữ tiếng Việt (ví dụ: "bảy", "mười một")
-    int? parsed = int.tryParse(text);
-    parsed ??= VietnameseNumberExtractor.extractNumber(text);
-
-    if (parsed != null) {
-      _verifyValue(parsed);
-    } else {
-      setState(() {
-        _error = 'Vui lòng nhập số hoặc chữ hợp lệ.';
-      });
+  void _applyValidation(ParentalGateAnswerStatus status) {
+    switch (status) {
+      case ParentalGateAnswerStatus.correct:
+        _close(true);
+        break;
+      case ParentalGateAnswerStatus.empty:
+        setState(() => _error = 'Vui lòng nhập hoặc chọn đáp án.');
+        break;
+      case ParentalGateAnswerStatus.invalid:
+        setState(() => _error = 'Vui lòng nhập đáp án bằng số hoặc chữ.');
+        break;
+      case ParentalGateAnswerStatus.incorrect:
+        setState(() => _error = 'Kết quả chưa chính xác. Vui lòng thử lại.');
+        break;
     }
+  }
+
+  void _close(bool passed) {
+    setState(() => _allowPop = true);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        Navigator.of(context, rootNavigator: true).pop(passed);
+      }
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
-      title: const Row(
-        children: [
-          Icon(Icons.verified_user_rounded, color: AppColors.primary, size: 28),
-          SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              'Cổng Bảo Vệ Phụ Huynh',
-              style: TextStyle(fontWeight: FontWeight.w900, fontSize: 19),
-            ),
-          ),
-        ],
-      ),
-      content: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Để đảm bảo an toàn cho trẻ, bố mẹ vui lòng trả lời câu hỏi toán học dưới đây:',
-              style: TextStyle(fontSize: 14, color: AppColors.textDark),
-            ),
-            const SizedBox(height: 16),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-              decoration: BoxDecoration(
-                color: AppColors.secondary.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: AppColors.secondary.withValues(alpha: 0.3)),
-              ),
-              child: Text(
-                '📝 "${_question.questionText}"',
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.primary,
+    return PopScope(
+      canPop: _allowPop,
+      child: Dialog(
+        insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(28),
+        ),
+        backgroundColor: AppColors.cardBg,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 520),
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const Row(
+                  children: [
+                    Icon(
+                      Icons.verified_user_rounded,
+                      color: AppColors.primary,
+                      size: 32,
+                    ),
+                    SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'Cổng bảo vệ phụ huynh',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w900,
+                          fontSize: 20,
+                          color: AppColors.textDark,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-              ),
-            ),
-            if (_error.isNotEmpty) ...[
-              const SizedBox(height: 12),
-              Text(
-                _error,
-                style: const TextStyle(
-                  color: AppColors.error,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-            const SizedBox(height: 16),
-            const Text(
-              'Chọn nhanh đáp án:',
-              style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.textLight),
-            ),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: _question.options.map((opt) {
-                return OutlinedButton(
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                const SizedBox(height: 12),
+                const Text(
+                  'Người lớn vui lòng trả lời câu hỏi để tiếp tục:',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: AppColors.textLight,
                   ),
-                  onPressed: () => _verifyValue(opt),
+                ),
+                const SizedBox(height: 16),
+                Container(
+                  width: double.infinity,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+                  decoration: BoxDecoration(
+                    color: AppColors.secondary.withValues(alpha: 0.18),
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(
+                      color: AppColors.secondary.withValues(alpha: 0.55),
+                    ),
+                  ),
                   child: Text(
-                    '$opt',
-                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+                    _question.questionText,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontSize: 21,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.textDark,
+                    ),
                   ),
-                );
-              }).toList(),
-            ),
-            const SizedBox(height: 16),
-            const Text(
-              'Hoặc nhập số / chữ trực tiếp:',
-              style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.textLight),
-            ),
-            const SizedBox(height: 6),
-            TextField(
-              controller: _controller,
-              keyboardType: TextInputType.text,
-              onSubmitted: (_) => _verifyInput(),
-              decoration: InputDecoration(
-                hintText: 'Ví dụ: 7 hoặc bảy',
-                suffixIcon: IconButton(
-                  icon: const Icon(Icons.arrow_forward_rounded, color: AppColors.primary),
-                  onPressed: _verifyInput,
                 ),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
-              ),
+                if (_error.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  Container(
+                    key: const ValueKey('parental_gate_error'),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: AppColors.error.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      _error,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        color: AppColors.error,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 16),
+                const Text(
+                  'Chọn đáp án',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.textLight,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 10,
+                  runSpacing: 10,
+                  children: _question.options.map((option) {
+                    return SizedBox(
+                      width: 96,
+                      child: KidButton(
+                        onPressed: () => _verifyValue(option),
+                        label: '$option',
+                        semanticLabel: 'Chọn đáp án $option',
+                        backgroundColor: AppColors.buttonSecondary,
+                        textColor: AppColors.textDark,
+                        height: 56,
+                        isSelected: _selectedOption == option,
+                      ),
+                    );
+                  }).toList(),
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  'Hoặc nhập đáp án',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.textLight,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Focus(
+                  onKeyEvent: (node, event) {
+                    if (event is KeyDownEvent &&
+                        event.logicalKey == LogicalKeyboardKey.enter) {
+                      _verifyInput();
+                      return KeyEventResult.handled;
+                    }
+                    return KeyEventResult.ignored;
+                  },
+                  child: TextField(
+                    controller: _controller,
+                    focusNode: _answerFocusNode,
+                    autofocus: true,
+                    keyboardType: TextInputType.text,
+                    textInputAction: TextInputAction.done,
+                    onSubmitted: (_) => _verifyInput(),
+                    onChanged: _onInputChanged,
+                    decoration: InputDecoration(
+                      hintText: 'Ví dụ: 8 hoặc tám',
+                      filled: true,
+                      fillColor: AppColors.parentSurface,
+                      suffixIcon: const Icon(
+                        Icons.edit_rounded,
+                        color: AppColors.textLight,
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Row(
+                  children: [
+                    Expanded(
+                      child: KidButton(
+                        onPressed: () => _close(false),
+                        icon: Icons.arrow_back_rounded,
+                        label: 'Quay lại',
+                        semanticLabel: 'Quay lại',
+                        backgroundColor: AppColors.buttonNeutral,
+                        textColor: AppColors.textDark,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: KidButton(
+                        onPressed: _verifyInput,
+                        icon: Icons.lock_open_rounded,
+                        label: 'Xác nhận',
+                        semanticLabel: 'Xác nhận đáp án',
+                        backgroundColor: AppColors.buttonPrimary,
+                        textColor: AppColors.textDark,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Hủy', style: TextStyle(color: AppColors.textLight)),
-        ),
-        ElevatedButton(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: AppColors.primary,
-            foregroundColor: Colors.white,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-          ),
-          onPressed: _verifyInput,
-          child: const Text('Mở Khóa'),
-        ),
-      ],
     );
   }
 }

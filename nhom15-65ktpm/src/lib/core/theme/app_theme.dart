@@ -123,9 +123,9 @@ class AppTheme {
       // Nút bấm chính (ElevatedButton)
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          elevation: 3,
-          backgroundColor: AppColors.primary,
-          foregroundColor: AppColors.onPrimary,
+          elevation: 1.5,
+          backgroundColor: AppColors.buttonPrimary,
+          foregroundColor: AppColors.textDark,
           minimumSize: const Size(
             AppDimensions.minTouchSize,
             AppDimensions.buttonHeight,
@@ -169,8 +169,9 @@ class AppTheme {
       // Nút bấm dạng đầy (FilledButton)
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
-          backgroundColor: AppColors.primary,
-          foregroundColor: AppColors.onPrimary,
+          backgroundColor: AppColors.buttonPrimary,
+          foregroundColor: AppColors.textDark,
+          elevation: 1.5,
           minimumSize: const Size(
             AppDimensions.minTouchSize,
             AppDimensions.buttonHeight,

@@ -20,7 +20,7 @@ class KidButton extends StatefulWidget {
     this.label,
     this.semanticLabel,
     this.icon,
-    this.backgroundColor = AppColors.primary,
+    this.backgroundColor = AppColors.buttonPrimary,
     this.textColor,
     this.width,
     this.height = AppDimensions.buttonHeight,
@@ -47,9 +47,19 @@ class _KidButtonState extends State<KidButton> {
             ? AppDimensions.minTouchSize
             : widget.width;
     final foregroundColor = widget.textColor ??
-        (widget.backgroundColor.computeLuminance() > 0.179
-            ? Colors.black
-            : Colors.white);
+        (widget.backgroundColor == AppColors.primary
+            ? AppColors.onPrimary
+            : widget.backgroundColor == AppColors.secondary
+                ? AppColors.onSecondary
+                : widget.backgroundColor == AppColors.accentPurple
+                    ? AppColors.onAccentPurple
+                    : widget.backgroundColor.computeLuminance() > 0.179
+                        ? AppColors.textDark
+                        : Colors.white);
+    final borderColor = widget.isSelected
+        ? AppColors.textDark
+        : _outlineColor(widget.backgroundColor);
+    final borderWidth = widget.isSelected ? 2.5 : 1.25;
     final horizontalPadding = widget.label == null ? 0.0 : 20.0;
 
     return Semantics(
@@ -60,14 +70,24 @@ class _KidButtonState extends State<KidButton> {
       child: ExcludeSemantics(
         child: Material(
           color: widget.backgroundColor,
-          elevation: widget.isSelected ? 5 : 3,
+          elevation: widget.isSelected ? 3 : 1.5,
           borderRadius: borderRadius,
           child: Container(
             decoration: BoxDecoration(
               borderRadius: borderRadius,
-              border: widget.isSelected
-                  ? Border.all(color: Colors.white, width: 2.5)
-                  : null,
+              border: Border.all(
+                color: borderColor,
+                width: borderWidth,
+              ),
+              boxShadow: widget.isSelected
+                  ? null
+                  : [
+                      BoxShadow(
+                        color: AppColors.textDark.withValues(alpha: 0.08),
+                        blurRadius: 5,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
             ),
             child: InkWell(
               onTap: () {
@@ -133,5 +153,27 @@ class _KidButtonState extends State<KidButton> {
         ),
       ),
     );
+  }
+
+  Color _outlineColor(Color backgroundColor) {
+    if (backgroundColor == AppColors.buttonPrimary) {
+      return AppColors.buttonPrimaryOutline;
+    }
+    if (backgroundColor == AppColors.buttonSecondary) {
+      return AppColors.buttonSecondaryOutline;
+    }
+    if (backgroundColor == AppColors.buttonPurple) {
+      return AppColors.buttonPurpleOutline;
+    }
+    if (backgroundColor == AppColors.buttonMint) {
+      return AppColors.buttonMintOutline;
+    }
+    if (backgroundColor == AppColors.buttonNeutral) {
+      return AppColors.buttonNeutralOutline;
+    }
+    if (backgroundColor == AppColors.secondary) {
+      return AppColors.secondaryOutline;
+    }
+    return AppColors.textDark.withValues(alpha: 0.35);
   }
 }
