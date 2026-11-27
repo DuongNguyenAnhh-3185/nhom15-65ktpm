@@ -106,37 +106,38 @@ void main() {
   testWidgets('dashboard shows real overview and attempt history',
       (tester) async {
     final storage = sl<StorageService>();
+    final attemptTimestamp = DateTime.now().toIso8601String();
     await storage.saveAttemptLog(
-      const AttemptLog(
+      AttemptLog(
         questionId: 'q-1',
         questionText: 'Bốn cộng hai',
         userAnswer: 6,
         isCorrect: true,
         responseTimeMs: 500,
         answeredVia: 'voice',
-        timestamp: '2026-11-27T09:00:00',
+        timestamp: attemptTimestamp,
       ),
     );
     await storage.saveAttemptLog(
-      const AttemptLog(
+      AttemptLog(
         questionId: 'q-2',
         questionText: 'Bảy trừ ba',
         userAnswer: 5,
         isCorrect: false,
         responseTimeMs: 1000,
         answeredVia: 'abacus_touch',
-        timestamp: '2026-11-27T09:05:00',
+        timestamp: attemptTimestamp,
       ),
     );
     await storage.saveAttemptLog(
-      const AttemptLog(
+      AttemptLog(
         questionId: 'q-3',
         questionText: 'Ba cộng ba',
         userAnswer: 6,
         isCorrect: true,
         responseTimeMs: 1500,
         answeredVia: 'abacus_touch',
-        timestamp: '2026-11-27T09:10:00',
+        timestamp: attemptTimestamp,
       ),
     );
 
@@ -144,12 +145,12 @@ void main() {
 
     expect(find.text('Tổng quan tiến độ học tập'), findsOneWidget);
     expect(find.text('Câu hỏi đã hoàn thành'), findsOneWidget);
-    expect(find.text('3'), findsOneWidget);
+    expect(find.text('3'), findsNWidgets(2));
     expect(find.text('67%'), findsOneWidget);
     expect(find.text('1.0s'), findsOneWidget);
     expect(find.text('2 / 3 câu đúng'), findsOneWidget);
     expect(find.text('Thống kê theo ngày trong tuần'), findsOneWidget);
-    expect(find.text('Chưa tổng hợp số liệu theo ngày'), findsOneWidget);
+    expect(find.text('Số lượt làm trong 7 ngày gần nhất'), findsOneWidget);
     expect(find.text('Bốn cộng hai'), findsOneWidget);
     expect(find.text('Bảy trừ ba'), findsOneWidget);
     expect(find.text('Ba cộng ba'), findsOneWidget);
@@ -160,12 +161,34 @@ void main() {
       (tester) async {
     await _openDashboard(tester);
 
-    expect(find.text('0'), findsOneWidget);
+    expect(find.text('0'), findsNWidgets(8));
     expect(find.text('—'), findsNWidgets(2));
     expect(find.text('Chưa có dữ liệu'), findsNWidgets(2));
     expect(
         find.text('Chưa có lịch sử làm bài theo bộ lọc này.'), findsOneWidget);
-    expect(find.text('Chưa tổng hợp số liệu theo ngày'), findsOneWidget);
+    expect(find.text('Chưa có dữ liệu trong 7 ngày gần nhất'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('refresh reloads statistics after a new attempt is stored',
+      (tester) async {
+    await _openDashboard(tester);
+    await sl<StorageService>().saveAttemptLog(
+      AttemptLog(
+        questionId: 'new-attempt',
+        userAnswer: 6,
+        isCorrect: true,
+        responseTimeMs: 800,
+        answeredVia: 'abacus_touch',
+        timestamp: DateTime.now().toIso8601String(),
+      ),
+    );
+
+    await tester.drag(find.byType(Scrollable).first, const Offset(0, 300));
+    await tester.pumpAndSettle();
+
+    expect(find.text('100%'), findsOneWidget);
+    expect(find.text('1 / 1 câu đúng'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
