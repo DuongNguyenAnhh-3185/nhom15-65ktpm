@@ -32,7 +32,7 @@ class _LessonPlayScreenState extends State<LessonPlayScreen>
   final AudioService _audioService = sl<AudioService>();
   final QuestionGenerator _generator = QuestionGenerator();
   late final FingerMathController _fingerController;
-  late final AnimationController _confettiController;
+  late final AdaptiveLearningEngine _adaptiveEngine;
   late SorobanQuestion _question;
   DateTime _questionStartTime = DateTime.now();
 
@@ -48,9 +48,11 @@ class _LessonPlayScreenState extends State<LessonPlayScreen>
   @override
   void initState() {
     super.initState();
-    _confettiController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1700),
+    _adaptiveEngine = AdaptiveLearningEngine(
+      initialState: AdaptiveState(
+        currentDifficulty: widget.level,
+        isFingerGuideEnabled: false,
+      ),
     );
     _fingerController = FingerMathController(showLeftHand: _isLevel2);
     _loadQuestion(isFirstQuestion: true);
@@ -69,8 +71,7 @@ class _LessonPlayScreenState extends State<LessonPlayScreen>
       _isLevel2 ? QuestionLevel.friendRules : QuestionLevel.basic,
     );
     _fingerController.setValue(_question.operands.first);
-    _showHint = false;
-    _confettiController.reset();
+    _showHint = _adaptiveEngine.state.isFingerGuideEnabled;
     _hasCheckedAnswer = false;
     _answeredCorrectly = false;
     _adaptiveFeedbackMessage = '';
@@ -125,11 +126,14 @@ class _LessonPlayScreenState extends State<LessonPlayScreen>
       BadgeUnlockDialog.show(context, gamificationResult.newlyUnlockedBadges);
     }
 
-    // 3. Gia sư thích ứng đánh giá và hỗ trợ
-    final decision = AdaptiveTutorEngine.evaluatePerformance(
-      recentAttempts: allLogs,
-      currentLevel: widget.level,
+    // 3. Gia sư thích ứng đánh giá và hỗ trợ theo cửa sổ trượt
+    final attempt = AttemptResult(
+      isCorrect: isCorrect,
+      responseTimeMs: responseTime,
+      mode: PracticeMode.fingerMath,
+      difficultyLevel: widget.level,
     );
+    final decision = _adaptiveEngine.processAttempt(attempt);
 
     if (mounted) {
       setState(() {
@@ -427,6 +431,87 @@ class _LessonPlayScreenState extends State<LessonPlayScreen>
                                 showLiveValue: true,
                               ),
                             ),
+                          ],
+                        ),
+                      ),
+                      const Padding(
+                        padding:
+                            EdgeInsets.symmetric(horizontal: 20, vertical: 6),
+                        child: Text(
+                          'Bé hãy gảy ngón tay hoặc bấm Micro để nói đáp án nhé!',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: AppColors.textDark,
+                            fontSize: 17,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                      Container(
+                        margin: const EdgeInsets.symmetric(
+                            horizontal: 20, vertical: 6),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 28, vertical: 12),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(24),
+                          border:
+                              Border.all(color: AppColors.secondary, width: 2),
+                        ),
+                        child: Text(
+                          '${_question.formulaExpression} = ?',
+                          style: const TextStyle(
+                            color: AppColors.primary,
+                            fontSize: 36,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ),
+                      if (_isLevel2)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 20),
+                          child: _buildHintSection(secondOperand),
+                        ),
+                      if (!_isLevel2)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 24),
+                          child: Text(
+                            isAddition
+                                ? 'Bắt đầu từ $firstOperand rồi xòe thêm $secondOperand nhé.'
+                                : 'Bắt đầu từ $firstOperand rồi gập bớt $secondOperand nhé.',
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(color: AppColors.textLight),
+                          ),
+                        ),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        child: FingerMathBoardWidget(
+                          controller: _fingerController,
+                          height: handBoardHeight,
+                          showLiveValue: true,
+                          isGuideEnabled: _showHint || _adaptiveEngine.state.isFingerGuideEnabled,
+                        ),
+                      ),
+
+                      // Nút Micro AI nhận diện giọng nói tiếng Việt (Mục 7.7)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 6),
+                        child: VoiceAnswerMicButton(
+                          onAnswerDetected: (number, raw) {
+                            _fingerController.setValue(number);
+                            _checkAnswer(voiceAnswer: number, rawSpeech: raw);
+                          },
+                          onHintRequested: (speech) {
+                            setState(() => _showHint = true);
+                            _audioService.speak(
+                              'Đừng lo bé nhé! ${_question.formulaExpression}. Bé hãy quan sát ngón tay nè!',
+                            );
+                          },
+                          onStatusChanged: (status) {
+                            // Cập nhật trạng thái nếu cần
+                          },
+                        ),
+                      ),
 
                             // Nút Micro AI nhận diện giọng nói tiếng Việt (Mục 7.7)
                             Padding(

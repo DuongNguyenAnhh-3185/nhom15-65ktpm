@@ -58,6 +58,7 @@ class _FlashAnzanScreenState extends State<FlashAnzanScreen> {
 
   FlashState _state = FlashState.idle;
   int _flashSpeedMs = 1200; // Tốc độ chớp số thích ứng
+  late final AdaptiveLearningEngine _adaptiveEngine;
   List<int> _numbers = [];
   List<_FlashStep> _flashSteps = [];
   int _currentIndex = 0;
@@ -76,6 +77,11 @@ class _FlashAnzanScreenState extends State<FlashAnzanScreen> {
   @override
   void initState() {
     super.initState();
+    _adaptiveEngine = AdaptiveLearningEngine(
+      initialState: AdaptiveState(
+        flashDurationMs: _flashSpeedMs,
+      ),
+    );
     _loadProfileSettings();
   }
 
@@ -90,7 +96,8 @@ class _FlashAnzanScreenState extends State<FlashAnzanScreen> {
     final profile = await _storageService.getChildProfile();
     if (!mounted) return;
     setState(() {
-      _flashSpeedMs = profile.flashSpeedMs.clamp(500, 1500);
+      _flashSpeedMs = profile.flashSpeedMs;
+      _adaptiveEngine.updateConfig(flashDurationMs: profile.flashSpeedMs);
     });
   }
 
@@ -249,17 +256,19 @@ class _FlashAnzanScreenState extends State<FlashAnzanScreen> {
       BadgeUnlockDialog.show(context, gamificationResult.newlyUnlockedBadges);
     }
 
-    // 3. Gia sư thích ứng điều chỉnh tốc độ Flash Anzan
-    final decision = AdaptiveTutorEngine.evaluatePerformance(
-      recentAttempts: allLogs,
-      currentFlashSpeedMs: _flashSpeedMs,
-      currentLevel: 3,
+    // 3. Gia sư thích ứng điều chỉnh tốc độ Flash Anzan theo cửa sổ trượt
+    final attempt = AttemptResult(
+      isCorrect: _isCorrect,
+      responseTimeMs: responseTime,
+      mode: PracticeMode.flashAnzan,
+      flashDurationMs: _flashSpeedMs,
     );
+    final decision = _adaptiveEngine.processAttempt(attempt);
 
     if (!mounted) return;
     setState(() {
-      _flashSpeedMs = decision.recommendedSpeedMs.clamp(500, 1500);
-      _adaptiveNote = decision.reason;
+      _flashSpeedMs = decision.recommendedSpeedMs;
+      _adaptiveNote = decision.message.isNotEmpty ? decision.message : decision.reason;
     });
   }
 

@@ -10,12 +10,14 @@ class FingerMathBoardWidget extends StatefulWidget {
   final FingerMathController controller;
   final double height;
   final bool showLiveValue;
+  final bool isGuideEnabled;
 
   const FingerMathBoardWidget({
     super.key,
     required this.controller,
     this.height = 250.0,
     this.showLiveValue = true,
+    this.isGuideEnabled = false,
   });
 
   @override
@@ -492,6 +494,38 @@ class _FingerMathBoardWidgetState extends State<FingerMathBoardWidget> {
                 },
               ),
 
+            if (widget.isGuideEnabled)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 6),
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFF7ED),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: AppColors.primary, width: 1.5),
+                  ),
+                  child: const Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.lightbulb_rounded, size: 18, color: AppColors.primary),
+                      SizedBox(width: 6),
+                      Flexible(
+                        child: Text(
+                          '💡 Gia sư AI: Đang bật hướng dẫn gập/mở từng ngón tay trực quan',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.primary,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
             // Khu vực hiển thị 2 bàn tay tương tác Flashcard
             Container(
               height: widget.height,
@@ -500,6 +534,9 @@ class _FingerMathBoardWidgetState extends State<FingerMathBoardWidget> {
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(24),
+                border: widget.isGuideEnabled
+                    ? Border.all(color: AppColors.primary, width: 2)
+                    : null,
                 boxShadow: [
                   BoxShadow(
                     color: Colors.black.withOpacity(0.05),
