@@ -1,6 +1,6 @@
-import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import '../../../../core/constants/app_colors.dart';
+import '../../../../core/theme/app_theme.dart';
 import '../../../../core/services/reminder_service.dart';
 import '../../../../core/services/storage_service.dart';
 import '../../../../injection_container.dart';
@@ -51,6 +51,7 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
     final logs = await _storageService.getRecentLogs();
     final reminder = await ReminderService.getSettings();
 
+    if (!mounted) return;
     setState(() {
       _profile = profile;
       _allLogs = logs;
@@ -95,151 +96,148 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
     final totalAttempts = _allLogs.length;
     final correctAttempts = _allLogs.where((l) => l.isCorrect).length;
     final accuracyPercent = totalAttempts > 0
-        ? ((correctAttempts / totalAttempts) * 100).round()
-        : 100;
+        ? '${((correctAttempts / totalAttempts) * 100).round()}%'
+        : '—';
 
     final avgTimeMs = totalAttempts > 0
         ? (_allLogs.map((l) => l.responseTimeMs).reduce((a, b) => a + b) /
                 totalAttempts)
             .round()
-        : 0;
-    final avgTimeSeconds = (avgTimeMs / 1000).toStringAsFixed(1);
+        : null;
+    final avgTimeSeconds =
+        avgTimeMs == null ? '—' : '${(avgTimeMs / 1000).toStringAsFixed(1)}s';
+    final width = MediaQuery.sizeOf(context).width;
+    final horizontalPadding = width < 400 ? 12.0 : 24.0;
+    final metricColumns = width >= 1000
+        ? 4
+        : width >= 600
+            ? 2
+            : 1;
+    final badgeColumns = width >= 1000
+        ? 4
+        : width >= 600
+            ? 3
+            : 2;
 
-    return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FD),
-      appBar: AppBar(
-        title: const Text(
-          '📊 Báo Cáo & Thống Kê Phụ Huynh',
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+    return Theme(
+      data: AppTheme.parentTheme,
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Bảng điều khiển phụ huynh'),
         ),
-        backgroundColor: Colors.white,
-        elevation: 0.5,
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // 1. Thẻ Profile thông tin bé
-            _buildProfileHeader(),
-            const SizedBox(height: 18),
-
-            // 2. Thẻ chỉ số tổng quan (4 chỉ số)
-            const Text(
-              'Chỉ Số Học Tập Tổng Quan',
-              style: TextStyle(
-                  fontSize: 17,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.textDark),
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: _buildMetricCard(
-                    title: 'Độ chính xác',
-                    value: '$accuracyPercent%',
-                    subtitle: '$correctAttempts / $totalAttempts câu đúng',
-                    icon: Icons.check_circle_outline,
-                    color: AppColors.success,
+        body: SingleChildScrollView(
+          padding: EdgeInsets.symmetric(
+            horizontal: horizontalPadding,
+            vertical: 20,
+          ),
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 1200),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _buildProfileHeader(),
+                  const SizedBox(height: 24),
+                  _buildSectionTitle(context, 'Tổng quan tiến độ học tập'),
+                  const SizedBox(height: 12),
+                  GridView(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: metricColumns,
+                      crossAxisSpacing: 12,
+                      mainAxisSpacing: 12,
+                      childAspectRatio: metricColumns == 1
+                          ? 1.9
+                          : metricColumns == 4
+                              ? 1.8
+                              : 2.1,
+                    ),
+                    children: [
+                      _buildMetricCard(
+                        title: 'Câu hỏi đã hoàn thành',
+                        value: '$totalAttempts',
+                        subtitle: 'Trong 50 lượt làm gần nhất',
+                        icon: Icons.assignment_turned_in_outlined,
+                        color: AppColors.primaryText,
+                      ),
+                      _buildMetricCard(
+                        title: 'Tỷ lệ trả lời chính xác',
+                        value: accuracyPercent,
+                        subtitle: totalAttempts == 0
+                            ? 'Chưa có dữ liệu'
+                            : '$correctAttempts / $totalAttempts câu đúng',
+                        icon: Icons.check_circle_outline,
+                        color: AppColors.success,
+                      ),
+                      _buildMetricCard(
+                        title: 'Thời gian suy nghĩ trung bình',
+                        value: avgTimeSeconds,
+                        subtitle: avgTimeMs == null
+                            ? 'Chưa có dữ liệu'
+                            : 'Trung bình $avgTimeMs ms',
+                        icon: Icons.timer_outlined,
+                        color: AppColors.primaryText,
+                      ),
+                      _buildMetricCard(
+                        title: 'Chuỗi học hiện tại',
+                        value: '${_profile?.streakCount ?? 0} ngày',
+                        subtitle:
+                            'Kỷ lục: ${_profile?.longestStreak ?? 0} ngày',
+                        icon: Icons.local_fire_department_outlined,
+                        color: AppColors.primaryText,
+                      ),
+                    ],
                   ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _buildMetricCard(
-                    title: 'Thời gian suy nghĩ',
-                    value: '${avgTimeSeconds}s',
-                    subtitle: 'Trung bình: $avgTimeMs ms',
-                    icon: Icons.timer_outlined,
-                    color: AppColors.primary,
-                  ),
-                ),
-              ],
+                  const SizedBox(height: 28),
+                  _buildSectionTitle(context, 'Thống kê theo ngày trong tuần'),
+                  const SizedBox(height: 12),
+                  _buildBarChartContainer(),
+                  const SizedBox(height: 24),
+                  _buildReminderCard(),
+                  const SizedBox(height: 24),
+                  _buildBadgesSection(badgeColumns),
+                  const SizedBox(height: 24),
+                  _buildDetailedHistorySection(),
+                  const SizedBox(height: 32),
+                ],
+              ),
             ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: _buildMetricCard(
-                    title: 'Chuỗi Streak',
-                    value: '${_profile?.streakCount ?? 1} ngày',
-                    subtitle: 'Kỷ lục: ${_profile?.longestStreak ?? 3} ngày',
-                    icon: Icons.local_fire_department,
-                    color: AppColors.accentOrange,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _buildMetricCard(
-                    title: 'Gia sư thích ứng',
-                    value: 'Cấp ${_profile?.currentLevel ?? 1}',
-                    subtitle: 'Chớp số: ${_profile?.flashSpeedMs ?? 1200}ms',
-                    icon: Icons.auto_awesome,
-                    color: AppColors.secondary,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 24),
-
-            // 3. Biểu đồ cột fl_chart các ngày trong tuần
-            const Text(
-              'Biểu Đồ Luyện Tập Trong Tuần',
-              style: TextStyle(
-                  fontSize: 17,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.textDark),
-            ),
-            const SizedBox(height: 4),
-            const Text(
-              'Thống kê số câu đúng so với tổng số câu đã luyện theo ngày',
-              style: TextStyle(fontSize: 13, color: AppColors.textLight),
-            ),
-            const SizedBox(height: 12),
-            _buildBarChartContainer(),
-            const SizedBox(height: 24),
-
-            // 4. Lịch nhắc học thông minh cố định 19:00
-            _buildReminderCard(),
-            const SizedBox(height: 24),
-
-            // 5. Bộ sưu tập Huy hiệu Gamification
-            _buildBadgesSection(),
-            const SizedBox(height: 24),
-
-            // 6. Lịch sử làm bài chi tiết với bộ lọc
-            _buildDetailedHistorySection(),
-            const SizedBox(height: 32),
-          ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildProfileHeader() {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [AppColors.secondary, Color(0xFF1E88E5)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.secondary.withValues(alpha: 0.3),
-            blurRadius: 14,
-            offset: const Offset(0, 5),
+  Widget _buildSectionTitle(BuildContext context, String title) {
+    return Text(
+      title,
+      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+            fontSize: 18,
+            fontWeight: FontWeight.w700,
           ),
-        ],
+    );
+  }
+
+  Widget _buildProfileHeader() {
+    final profile = _profile;
+    return Container(
+      padding: const EdgeInsets.all(22),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.primaryContainer,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.outline.withValues(alpha: 0.7)),
       ),
       child: Row(
         children: [
-          const CircleAvatar(
-            radius: 34,
-            backgroundColor: Colors.white,
-            child: Text('👧', style: TextStyle(fontSize: 36)),
+          CircleAvatar(
+            radius: 30,
+            backgroundColor: AppColors.cardBg,
+            child: Icon(
+              Icons.person_outline_rounded,
+              size: 34,
+              color: Theme.of(context).colorScheme.primary,
+            ),
           ),
           const SizedBox(width: 16),
           Expanded(
@@ -247,50 +245,35 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  _profile?.name ?? 'Bé Yêu',
-                  style: const TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.w900,
-                      color: Colors.white),
+                  profile?.name.trim().isNotEmpty == true
+                      ? profile!.name
+                      : 'Hồ sơ học tập',
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.textDark,
+                      ),
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Độ tuổi: ${_profile?.age ?? 5} tuổi • Cấp độ ${_profile?.currentLevel ?? 1}',
-                  style: const TextStyle(fontSize: 14, color: Colors.white70),
+                  profile == null
+                      ? 'Chưa có thông tin hồ sơ'
+                      : '${profile.age} tuổi • Cấp độ ${profile.currentLevel}',
+                  style: Theme.of(context).textTheme.bodyMedium,
                 ),
                 const SizedBox(height: 8),
-                Row(
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
                   children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.22),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text(
-                        '🔥 Streak: ${_profile?.streakCount ?? 1} ngày',
-                        style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w700,
-                            fontSize: 13),
-                      ),
+                    _buildProfileTag(
+                      icon: Icons.local_fire_department_outlined,
+                      label: 'Chuỗi: ${profile?.streakCount ?? 0} ngày',
                     ),
-                    const SizedBox(width: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.22),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text(
-                        '🏆 ${_profile?.unlockedBadgeIds.length ?? 0} Huy hiệu',
-                        style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w700,
-                            fontSize: 13),
-                      ),
+                    _buildProfileTag(
+                      icon: Icons.emoji_events_outlined,
+                      label:
+                          '${profile?.unlockedBadgeIds.length ?? 0} huy hiệu',
                     ),
                   ],
                 ),
@@ -299,6 +282,45 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildProfileTag({
+    required IconData icon,
+    required String label,
+  }) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return ConstrainedBox(
+          constraints: BoxConstraints(maxWidth: constraints.maxWidth),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: AppColors.cardBg,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(icon, size: 16, color: AppColors.primaryText),
+                const SizedBox(width: 6),
+                Flexible(
+                  child: Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: AppColors.textDark,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 12,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -326,15 +348,20 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                title,
-                style: const TextStyle(
+              Expanded(
+                child: Text(
+                  title,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
                     fontSize: 13,
                     color: AppColors.textLight,
-                    fontWeight: FontWeight.w600),
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
               ),
+              const SizedBox(width: 8),
               Icon(icon, color: color, size: 22),
             ],
           ),
@@ -355,90 +382,35 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
   }
 
   Widget _buildBarChartContainer() {
-    const days = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
-    final totalData = [8.0, 10.0, 7.0, 12.0, 9.0, 11.0, 14.0];
-    final correctData = [7.0, 9.0, 6.0, 11.0, 8.0, 10.0, 13.0];
-
     return Container(
-      height: 240,
-      padding: const EdgeInsets.all(18),
+      constraints: const BoxConstraints(minHeight: 200),
+      padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(22),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 12,
-            offset: const Offset(0, 3),
+        color: AppColors.parentCardBg,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: AppColors.outline.withValues(alpha: 0.7)),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.bar_chart_rounded,
+            size: 42,
+            color: Theme.of(context).colorScheme.primary,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Chưa tổng hợp số liệu theo ngày',
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Biểu đồ sẽ hiển thị khi có dữ liệu thống kê theo tuần.',
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.bodyMedium,
           ),
         ],
-      ),
-      child: BarChart(
-        BarChartData(
-          alignment: BarChartAlignment.spaceAround,
-          maxY: 16,
-          barTouchData: BarTouchData(
-            enabled: true,
-            touchTooltipData: BarTouchTooltipData(
-              getTooltipItem: (group, groupIndex, rod, rodIndex) {
-                final day = days[group.x.toInt()];
-                final correct = correctData[group.x.toInt()].toInt();
-                final total = totalData[group.x.toInt()].toInt();
-                final pct = ((correct / total) * 100).toInt();
-                return BarTooltipItem(
-                  '$day: $correct/$total đúng ($pct%)',
-                  const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 12),
-                );
-              },
-            ),
-          ),
-          titlesData: FlTitlesData(
-            show: true,
-            bottomTitles: AxisTitles(
-              sideTitles: SideTitles(
-                showTitles: true,
-                getTitlesWidget: (val, meta) {
-                  final idx = val.toInt();
-                  if (idx >= 0 && idx < days.length) {
-                    return Padding(
-                      padding: const EdgeInsets.only(top: 8),
-                      child: Text(
-                        days[idx],
-                        style: const TextStyle(
-                            fontWeight: FontWeight.bold, fontSize: 12),
-                      ),
-                    );
-                  }
-                  return const Text('');
-                },
-              ),
-            ),
-            leftTitles:
-                const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-            topTitles:
-                const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-            rightTitles:
-                const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-          ),
-          gridData: const FlGridData(show: false),
-          borderData: FlBorderData(show: false),
-          barGroups: List.generate(7, (i) {
-            return BarChartGroupData(
-              x: i,
-              barRods: [
-                BarChartRodData(
-                  toY: correctData[i],
-                  color: AppColors.secondary,
-                  width: 14,
-                  borderRadius: BorderRadius.circular(6),
-                ),
-              ],
-            );
-          }),
-        ),
       ),
     );
   }
@@ -501,28 +473,25 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
     );
   }
 
-  Widget _buildBadgesSection() {
+  Widget _buildBadgesSection(int columns) {
     final unlockedIds = Set<String>.from(_profile?.unlockedBadgeIds ?? []);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        Wrap(
+          spacing: 12,
+          runSpacing: 4,
+          alignment: WrapAlignment.spaceBetween,
+          crossAxisAlignment: WrapCrossAlignment.center,
           children: [
-            const Text(
-              'Bộ Sưu Tập Huy Hiệu Của Bé',
-              style: TextStyle(
-                  fontSize: 17,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.textDark),
-            ),
+            _buildSectionTitle(context, 'Bộ sưu tập huy hiệu'),
             Text(
               '${unlockedIds.length} / ${BadgeDefinitions.allBadges.length} đã mở',
-              style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.secondary),
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.primaryText,
+                  ),
             ),
           ],
         ),
@@ -531,11 +500,11 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
           itemCount: BadgeDefinitions.allBadges.length,
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 3,
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: columns,
             mainAxisSpacing: 10,
             crossAxisSpacing: 10,
-            childAspectRatio: 0.95,
+            childAspectRatio: columns >= 4 ? 1.15 : 0.95,
           ),
           itemBuilder: (context, index) {
             final badge = BadgeDefinitions.allBadges[index];
@@ -557,25 +526,15 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        _buildSectionTitle(context, 'Lịch sử làm bài chi tiết'),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          runSpacing: 4,
           children: [
-            const Text(
-              'Lịch Sử Làm Bài Chi Tiết',
-              style: TextStyle(
-                  fontSize: 17,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.textDark),
-            ),
-            Row(
-              children: [
-                _buildFilterChip('Tất cả', 'all'),
-                const SizedBox(width: 6),
-                _buildFilterChip('Đúng', 'correct'),
-                const SizedBox(width: 6),
-                _buildFilterChip('Cần ôn', 'incorrect'),
-              ],
-            ),
+            _buildFilterChip('Tất cả', 'all'),
+            _buildFilterChip('Đúng', 'correct'),
+            _buildFilterChip('Cần ôn', 'incorrect'),
           ],
         ),
         const SizedBox(height: 12),
@@ -673,13 +632,20 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
   Widget _buildFilterChip(String label, String value) {
     final isSelected = _logFilter == value;
     return ChoiceChip(
-      label: Text(label,
-          style: TextStyle(
-              fontSize: 12,
-              color: isSelected ? Colors.white : AppColors.textDark)),
+      label: Text(
+        label,
+        style: TextStyle(
+          fontSize: 12,
+          color: AppColors.textDark,
+          fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+        ),
+      ),
       selected: isSelected,
-      selectedColor: AppColors.primary,
-      backgroundColor: Colors.white,
+      selectedColor: AppColors.buttonPrimary,
+      backgroundColor: AppColors.parentCardBg,
+      side: BorderSide(
+        color: isSelected ? AppColors.buttonPrimaryOutline : AppColors.outline,
+      ),
       onSelected: (_) => setState(() => _logFilter = value),
     );
   }

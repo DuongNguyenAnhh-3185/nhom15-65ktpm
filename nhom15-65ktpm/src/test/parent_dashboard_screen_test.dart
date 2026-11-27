@@ -1,0 +1,194 @@
+import 'dart:convert';
+
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:soroban_kids_app/core/services/storage_service.dart';
+import 'package:soroban_kids_app/features/2_gamification_parent/presentation/screens/parent_dashboard_screen.dart';
+import 'package:soroban_kids_app/features/2_gamification_parent/presentation/widgets/parental_gate_dialog.dart';
+import 'package:soroban_kids_app/injection_container.dart';
+import 'package:soroban_kids_app/shared/entities/attempt_log.dart';
+
+const _numberWords = [
+  'không',
+  'một',
+  'hai',
+  'ba',
+  'bốn',
+  'năm',
+  'sáu',
+  'bảy',
+  'tám',
+  'chín',
+  'mười',
+  'mười một',
+  'mười hai',
+  'mười ba',
+  'mười bốn',
+  'mười lăm',
+  'mười sáu',
+  'mười bảy',
+  'mười tám',
+  'mười chín',
+  'hai mươi',
+];
+
+class _DashboardHost extends StatelessWidget {
+  const _DashboardHost();
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Center(
+        child: ElevatedButton(
+          onPressed: () => ParentDashboardRoute.open(context),
+          child: const Text('Mở khu vực phụ huynh'),
+        ),
+      ),
+    );
+  }
+}
+
+int _answerFromQuestion(String text) {
+  final match = RegExp(r'^(.+) (cộng|trừ) (.+) bằng mấy\?$')
+      .firstMatch(text.toLowerCase())!;
+  final first = _numberWords.indexOf(match.group(1)!);
+  final second = _numberWords.indexOf(match.group(3)!);
+  return match.group(2) == 'cộng' ? first + second : first - second;
+}
+
+Future<void> _openDashboard(WidgetTester tester) async {
+  await tester.pumpWidget(
+    MaterialApp(
+      key: UniqueKey(),
+      home: const _DashboardHost(),
+    ),
+  );
+  await tester.tap(find.text('Mở khu vực phụ huynh'));
+  await tester.pumpAndSettle();
+  expect(find.byType(ParentalGateDialog), findsOneWidget);
+
+  final question = tester.widget<Text>(find.textContaining('bằng mấy?')).data!;
+  await tester.enterText(
+    find.byType(TextField),
+    '${_answerFromQuestion(question)}',
+  );
+  await tester.tap(find.text('Xác nhận'));
+  await tester.pumpAndSettle();
+  expect(find.byType(ParentDashboardScreen), findsOneWidget);
+}
+
+void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  setUp(() async {
+    SharedPreferences.setMockInitialValues({
+      'soroban_child_profile': jsonEncode({
+        'id': 'dashboard-child',
+        'name': 'Linh',
+        'age': 5,
+        'streakCount': 2,
+        'longestStreak': 4,
+        'lastActiveDate': '',
+        'unlockedBadgeIds': <String>[],
+        'currentLevel': 1,
+      }),
+      'daily_reminder_enabled': false,
+    });
+    await sl.reset();
+    sl.registerSingleton<StorageService>(StorageService());
+  });
+
+  tearDown(() async {
+    await sl.reset();
+  });
+
+  testWidgets('dashboard shows real overview and attempt history',
+      (tester) async {
+    final storage = sl<StorageService>();
+    await storage.saveAttemptLog(
+      const AttemptLog(
+        questionId: 'q-1',
+        questionText: 'Bốn cộng hai',
+        userAnswer: 6,
+        isCorrect: true,
+        responseTimeMs: 500,
+        answeredVia: 'voice',
+        timestamp: '2026-11-27T09:00:00',
+      ),
+    );
+    await storage.saveAttemptLog(
+      const AttemptLog(
+        questionId: 'q-2',
+        questionText: 'Bảy trừ ba',
+        userAnswer: 5,
+        isCorrect: false,
+        responseTimeMs: 1000,
+        answeredVia: 'abacus_touch',
+        timestamp: '2026-11-27T09:05:00',
+      ),
+    );
+    await storage.saveAttemptLog(
+      const AttemptLog(
+        questionId: 'q-3',
+        questionText: 'Ba cộng ba',
+        userAnswer: 6,
+        isCorrect: true,
+        responseTimeMs: 1500,
+        answeredVia: 'abacus_touch',
+        timestamp: '2026-11-27T09:10:00',
+      ),
+    );
+
+    await _openDashboard(tester);
+
+    expect(find.text('Tổng quan tiến độ học tập'), findsOneWidget);
+    expect(find.text('Câu hỏi đã hoàn thành'), findsOneWidget);
+    expect(find.text('3'), findsOneWidget);
+    expect(find.text('67%'), findsOneWidget);
+    expect(find.text('1.0s'), findsOneWidget);
+    expect(find.text('2 / 3 câu đúng'), findsOneWidget);
+    expect(find.text('Thống kê theo ngày trong tuần'), findsOneWidget);
+    expect(find.text('Chưa tổng hợp số liệu theo ngày'), findsOneWidget);
+    expect(find.text('Bốn cộng hai'), findsOneWidget);
+    expect(find.text('Bảy trừ ba'), findsOneWidget);
+    expect(find.text('Ba cộng ba'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('empty progress does not display fabricated percentages or times',
+      (tester) async {
+    await _openDashboard(tester);
+
+    expect(find.text('0'), findsOneWidget);
+    expect(find.text('—'), findsNWidgets(2));
+    expect(find.text('Chưa có dữ liệu'), findsNWidgets(2));
+    expect(
+        find.text('Chưa có lịch sử làm bài theo bộ lọc này.'), findsOneWidget);
+    expect(find.text('Chưa tổng hợp số liệu theo ngày'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('dashboard layout adapts to narrow, tablet and desktop widths',
+      (tester) async {
+    final oldSize = tester.view.physicalSize;
+    final oldRatio = tester.view.devicePixelRatio;
+    addTearDown(() {
+      tester.view.physicalSize = oldSize;
+      tester.view.devicePixelRatio = oldRatio;
+    });
+
+    for (final size in [
+      const Size(320, 720),
+      const Size(768, 900),
+      const Size(1440, 900),
+    ]) {
+      tester.view.physicalSize = size;
+      tester.view.devicePixelRatio = 1;
+      await _openDashboard(tester);
+      expect(find.text('Bảng điều khiển phụ huynh'), findsOneWidget);
+      expect(find.text('Lịch sử làm bài chi tiết'), findsOneWidget);
+      expect(tester.takeException(), isNull, reason: 'Viewport $size');
+    }
+  });
+}
