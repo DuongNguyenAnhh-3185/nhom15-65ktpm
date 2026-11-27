@@ -25,6 +25,19 @@ class ParentDashboardStatistics {
 class ParentDashboardStatisticsService {
   const ParentDashboardStatisticsService._();
 
+  /// Returns a copy of [logs] ordered from newest to oldest.
+  static List<AttemptLog> newestFirst(List<AttemptLog> logs) {
+    final sortedLogs = List<AttemptLog>.of(logs);
+    sortedLogs.sort((left, right) {
+      final leftTime = DateTime.tryParse(left.timestamp)?.toLocal();
+      final rightTime = DateTime.tryParse(right.timestamp)?.toLocal();
+      if (leftTime == null) return rightTime == null ? 0 : 1;
+      if (rightTime == null) return -1;
+      return rightTime.compareTo(leftTime);
+    });
+    return sortedLogs;
+  }
+
   static ParentDashboardStatistics calculate(
     List<AttemptLog> logs, {
     DateTime? now,

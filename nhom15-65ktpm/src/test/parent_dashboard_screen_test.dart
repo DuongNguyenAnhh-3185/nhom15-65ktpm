@@ -164,6 +164,58 @@ void main() {
     expect(find.text('Bốn cộng hai'), findsOneWidget);
     expect(find.text('Bảy trừ ba'), findsOneWidget);
     expect(find.text('Ba cộng ba'), findsOneWidget);
+    expect(find.text('Chính xác'), findsNWidgets(2));
+    expect(find.text('Chưa chính xác'), findsOneWidget);
+    expect(find.text('Câu trả lời: 5'), findsOneWidget);
+    expect(find.text('Thời gian: 500 ms'), findsOneWidget);
+    final localAttemptTime = DateTime.parse(attemptTimestamp).toLocal();
+    final formattedAttemptTime =
+        '${localAttemptTime.day.toString().padLeft(2, '0')}/'
+        '${localAttemptTime.month.toString().padLeft(2, '0')}/'
+        '${localAttemptTime.year} '
+        '${localAttemptTime.hour.toString().padLeft(2, '0')}:'
+        '${localAttemptTime.minute.toString().padLeft(2, '0')}';
+    expect(find.text(formattedAttemptTime), findsNWidgets(3));
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('history sorts attempts newest first', (tester) async {
+    final now = DateTime.now();
+    final newestTimestamp = now.toIso8601String();
+    final olderTimestamp = now.subtract(const Duration(days: 1)).toIso8601String();
+    final storage = sl<StorageService>();
+    await storage.saveAttemptLog(
+      AttemptLog(
+        questionId: 'newest',
+        questionText: 'Câu mới nhất',
+        userAnswer: 8,
+        isCorrect: false,
+        responseTimeMs: 1200,
+        answeredVia: 'abacus_touch',
+        timestamp: newestTimestamp,
+      ),
+    );
+    await storage.saveAttemptLog(
+      AttemptLog(
+        questionId: 'older',
+        questionText: 'Câu cũ hơn',
+        userAnswer: 7,
+        isCorrect: true,
+        responseTimeMs: 900,
+        answeredVia: 'voice',
+        timestamp: olderTimestamp,
+      ),
+    );
+
+    await _openDashboard(tester);
+
+    final newestPosition = tester.getTopLeft(find.text('Câu mới nhất'));
+    final olderPosition = tester.getTopLeft(find.text('Câu cũ hơn'));
+    expect(newestPosition.dy, lessThan(olderPosition.dy));
+    expect(find.text('Chưa chính xác'), findsOneWidget);
+    expect(find.text('Chính xác'), findsOneWidget);
+    expect(find.text('Thời gian: 1200 ms'), findsOneWidget);
+    expect(find.text('Thời gian: 900 ms'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 

@@ -78,13 +78,14 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
   }
 
   List<AttemptLog> get _filteredLogs {
-    if (_logFilter == 'correct') {
-      return _allLogs.where((l) => l.isCorrect).toList();
-    }
-    if (_logFilter == 'incorrect') {
-      return _allLogs.where((l) => !l.isCorrect).toList();
-    }
-    return _allLogs;
+    final filteredLogs = switch (_logFilter) {
+      'correct' => _allLogs.where((log) => log.isCorrect),
+      'incorrect' => _allLogs.where((log) => !log.isCorrect),
+      _ => _allLogs,
+    };
+    return ParentDashboardStatisticsService.newestFirst(
+      filteredLogs.toList(),
+    );
   }
 
   @override
@@ -669,13 +670,27 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
           ListView.separated(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
-            itemCount: logs.length > 20 ? 20 : logs.length,
+            itemCount: logs.length,
             separatorBuilder: (_, __) => const SizedBox(height: 8),
             itemBuilder: (context, index) {
               final log = logs[index];
+              final isCorrect = log.isCorrect;
+              final statusColor =
+                  isCorrect ? AppColors.success : AppColors.error;
+              final timestamp = DateTime.tryParse(log.timestamp)?.toLocal();
+              final timestampLabel = timestamp == null
+                  ? 'Thời điểm không có sẵn'
+                  : '${timestamp.day.toString().padLeft(2, '0')}/'
+                      '${timestamp.month.toString().padLeft(2, '0')}/'
+                      '${timestamp.year} '
+                      '${timestamp.hour.toString().padLeft(2, '0')}:'
+                      '${timestamp.minute.toString().padLeft(2, '0')}';
+              final question = log.questionText.trim().isNotEmpty
+                  ? log.questionText.trim()
+                  : 'Bài tập ID: ${log.questionId}';
+
               return Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(16),
@@ -688,19 +703,19 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
                   ],
                 ),
                 child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: log.isCorrect
-                            ? AppColors.success.withValues(alpha: 0.15)
-                            : AppColors.error.withValues(alpha: 0.15),
+                        color: statusColor.withValues(alpha: 0.14),
                         shape: BoxShape.circle,
                       ),
                       child: Icon(
-                        log.isCorrect ? Icons.check_circle : Icons.cancel,
-                        color:
-                            log.isCorrect ? AppColors.success : AppColors.error,
+                        isCorrect
+                            ? Icons.check_circle_rounded
+                            : Icons.cancel_rounded,
+                        color: statusColor,
                         size: 22,
                       ),
                     ),
@@ -709,34 +724,91 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            log.questionText.isNotEmpty
-                                ? log.questionText
-                                : 'Bài tập ID: ${log.questionId}',
-                            style: const TextStyle(
-                                fontWeight: FontWeight.bold, fontSize: 14),
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 6,
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            children: [
+                              ConstrainedBox(
+                                constraints: const BoxConstraints(maxWidth: 760),
+                                child: Text(
+                                  question,
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .titleSmall
+                                      ?.copyWith(fontWeight: FontWeight.w700),
+                                ),
+                              ),
+                              _buildHistoryStatusChip(
+                                isCorrect: isCorrect,
+                                color: statusColor,
+                              ),
+                            ],
                           ),
-                          const SizedBox(height: 2),
-                          Text(
-                            'Đáp án của bé: ${log.userAnswer} • ${log.answeredVia == "voice" ? "🎙️ Giọng nói AI" : "🖐️ Bàn tay"}',
-                            style: const TextStyle(
-                                fontSize: 12, color: AppColors.textLight),
+                          const SizedBox(height: 8),
+                          Wrap(
+                            spacing: 16,
+                            runSpacing: 6,
+                            children: [
+                              _buildHistoryDetail(
+                                icon: Icons.edit_outlined,
+                                text: 'Câu trả lời: ${log.userAnswer}',
+                              ),
+                              _buildHistoryDetail(
+                                icon: Icons.timer_outlined,
+                                text: 'Thời gian: ${log.responseTimeMs} ms',
+                              ),
+                              _buildHistoryDetail(
+                                icon: Icons.access_time_rounded,
+                                text: timestampLabel,
+                              ),
+                            ],
                           ),
                         ],
                       ),
-                    ),
-                    Text(
-                      '${log.responseTimeMs} ms',
-                      style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.primary),
                     ),
                   ],
                 ),
               );
             },
           ),
+      ],
+    );
+  }
+
+  Widget _buildHistoryStatusChip({
+    required bool isCorrect,
+    required Color color,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(
+        isCorrect ? 'Chính xác' : 'Chưa chính xác',
+        style: TextStyle(
+          color: color,
+          fontSize: 12,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHistoryDetail({required IconData icon, required String text}) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 15, color: AppColors.textLight),
+        const SizedBox(width: 5),
+        Text(
+          text,
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: AppColors.textLight,
+              ),
+        ),
       ],
     );
   }
