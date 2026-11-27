@@ -25,6 +25,8 @@ class QuestionGenerator {
   QuestionGenerator({Random? random}) : _random = random ?? Random();
 
   final Random _random;
+  List<int>? _previousFlashOperands;
+  final Map<QuestionLevel, String> _previousQuestionKeys = {};
 
   /// Generates a question for [level]. Kept compatible with screens that pass
   /// the level as an integer.
@@ -43,11 +45,24 @@ class QuestionGenerator {
   }) {
     switch (level) {
       case QuestionLevel.basic:
-        return _generateBasic(operation: operation);
+        return _generateDistinctQuestion(
+          level: level,
+          generate: () => _generateBasic(operation: operation),
+          generateAlternative: (previousKey) =>
+              _generateBasicAlternative(operation, previousKey),
+        );
       case QuestionLevel.friendRules:
-        return _generateFriendRules(
-          operation: operation,
-          questionType: questionType,
+        return _generateDistinctQuestion(
+          level: level,
+          generate: () => _generateFriendRules(
+            operation: operation,
+            questionType: questionType,
+          ),
+          generateAlternative: (previousKey) => _generateFriendRules(
+            operation: operation,
+            questionType: questionType,
+            excludedQuestionKey: previousKey,
+          ),
         );
       case QuestionLevel.flashAnzan:
         return _generateFlashAnzan(
@@ -56,6 +71,43 @@ class QuestionGenerator {
         );
     }
   }
+
+  SorobanQuestion _generateDistinctQuestion({
+    required QuestionLevel level,
+    required SorobanQuestion Function() generate,
+    required SorobanQuestion Function(String previousKey) generateAlternative,
+  }) {
+    final previousKey = _previousQuestionKeys[level];
+    var question = generate();
+    var attempts = 1;
+
+    while (_questionKey(question) == previousKey && attempts < 10) {
+      question = generate();
+      attempts++;
+    }
+
+    if (_questionKey(question) == previousKey) {
+      question = generateAlternative(previousKey!);
+    }
+
+    _previousQuestionKeys[level] = _questionKey(question);
+    return question;
+  }
+
+  String _questionKey(SorobanQuestion question) => _questionIdentity(
+        level: question.level,
+        type: question.type,
+        operation: question.operation,
+        operands: question.operands,
+      );
+
+  String _questionIdentity({
+    required int level,
+    required QuestionType type,
+    required ArithmeticOperation? operation,
+    required List<int> operands,
+  }) =>
+      '$level|${type.name}|${operation?.name ?? ''}|${operands.join(',')}';
 
   SorobanQuestion _generateFlashAnzan({
     required int termCount,
@@ -76,10 +128,42 @@ class QuestionGenerator {
       );
     }
 
+    var question = _createFlashAnzanQuestion(
+      termCount: termCount,
+      flashSpeedMs: flashSpeedMs,
+    );
+    var attempts = 1;
+    while (_hasSameFlashOperands(question) && attempts < 10) {
+      question = _createFlashAnzanQuestion(
+        termCount: termCount,
+        flashSpeedMs: flashSpeedMs,
+      );
+      attempts++;
+    }
+
+    // Keep the no-repeat guarantee even if random sampling produces the same
+    // sequence repeatedly. A different first value makes the question distinct.
+    if (_hasSameFlashOperands(question)) {
+      question = _createFlashAnzanQuestion(
+        termCount: termCount,
+        flashSpeedMs: flashSpeedMs,
+        firstNumber: (_previousFlashOperands!.first + 1) % 100,
+      );
+    }
+
+    _previousFlashOperands = List.unmodifiable(question.operands);
+    return question;
+  }
+
+  SorobanQuestion _createFlashAnzanQuestion({
+    required int termCount,
+    required int flashSpeedMs,
+    int? firstNumber,
+  }) {
     // The first displayed number starts the running total; later numbers are
     // signed single-digit additions/subtractions. Keep every intermediate sum
     // in the supported 0-99 range.
-    final operands = <int>[_random.nextInt(100)];
+    final operands = <int>[firstNumber ?? _random.nextInt(100)];
     var runningTotal = operands.first;
 
     while (operands.length < termCount) {
@@ -104,9 +188,21 @@ class QuestionGenerator {
     );
   }
 
+  bool _hasSameFlashOperands(SorobanQuestion question) {
+    final previous = _previousFlashOperands;
+    if (previous == null || previous.length != question.operands.length) {
+      return false;
+    }
+    for (var index = 0; index < previous.length; index++) {
+      if (previous[index] != question.operands[index]) return false;
+    }
+    return true;
+  }
+
   SorobanQuestion _generateFriendRules({
     ArithmeticOperation? operation,
     QuestionType? questionType,
+    String? excludedQuestionKey,
   }) {
     final selectedOperation = operation ?? _randomOperation();
     final selectedType = questionType ??
@@ -134,6 +230,17 @@ class QuestionGenerator {
           first: first,
           second: second,
         )) {
+          continue;
+        }
+
+        if (excludedQuestionKey != null &&
+            _questionIdentity(
+                  level: QuestionLevel.friendRules.value,
+                  type: selectedType,
+                  operation: selectedOperation,
+                  operands: [first, second],
+                ) ==
+                excludedQuestionKey) {
           continue;
         }
 
@@ -225,5 +332,49 @@ class QuestionGenerator {
       expectedAnswer: answer,
       type: QuestionType.recognition,
     );
+  }
+
+  SorobanQuestion _generateBasicAlternative(
+    ArithmeticOperation? requestedOperation,
+    String previousKey,
+  ) {
+    const operations = [
+      ArithmeticOperation.addition,
+      ArithmeticOperation.subtraction,
+    ];
+    for (final operation in operations) {
+      if (requestedOperation != null && operation != requestedOperation) {
+        continue;
+      }
+      for (var first = 0; first <= 9; first++) {
+        final maxSecond = operation == ArithmeticOperation.addition
+            ? 9 - first
+            : first;
+        for (var second = 0; second <= maxSecond; second++) {
+          final operands = [first, second];
+          final key = _questionIdentity(
+            level: QuestionLevel.basic.value,
+            type: QuestionType.recognition,
+            operation: operation,
+            operands: operands,
+          );
+          if (key == previousKey) continue;
+
+          final answer = operation == ArithmeticOperation.addition
+              ? first + second
+              : first - second;
+          return SorobanQuestion(
+            id: 'level1_${DateTime.now().microsecondsSinceEpoch}',
+            level: QuestionLevel.basic.value,
+            operands: operands,
+            operation: operation,
+            expectedAnswer: answer,
+            type: QuestionType.recognition,
+          );
+        }
+      }
+    }
+
+    throw StateError('No distinct Level 1 question is available.');
   }
 }

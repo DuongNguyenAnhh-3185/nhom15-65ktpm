@@ -55,6 +55,7 @@ class FlashAnzanScreen extends StatefulWidget {
 class _FlashAnzanScreenState extends State<FlashAnzanScreen> {
   final AudioService _audioService = sl<AudioService>();
   final StorageService _storageService = sl<StorageService>();
+  final QuestionGenerator _questionGenerator = QuestionGenerator();
 
   FlashState _state = FlashState.idle;
   int _flashSpeedMs = 2500; // Tốc độ khởi đầu thân thiện với trẻ nhỏ.
@@ -110,7 +111,7 @@ class _FlashAnzanScreenState extends State<FlashAnzanScreen> {
   void _startFlashSession() {
     _flashTimer?.cancel();
     final token = ++_sessionToken;
-    final question = QuestionGenerator().generateForLevel(
+    final question = _questionGenerator.generateForLevel(
       QuestionLevel.flashAnzan,
       flashTermCount: 3,
       flashSpeedMs: _flashSpeedMs,
