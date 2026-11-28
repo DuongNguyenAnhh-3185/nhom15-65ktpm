@@ -183,6 +183,9 @@ class AdaptiveDecision extends Equatable {
     this.avgResponseTimeMs = 0,
   });
 
+  /// Cờ hiển thị gợi ý ngón tay theo yêu cầu đồ án
+  bool get showFingerHint => fingerGuideEnabled;
+
   bool get isLevelUp =>
       adaptationAction == AdaptationAction.levelUp ||
       action == AdaptiveAction.speedUp;
@@ -431,31 +434,44 @@ class AdaptiveLearningEngine {
     int currentLevel = 1,
     PracticeMode? mode,
   }) {
-    if (recentAttempts.isEmpty) {
+    if (recentAttempts.length < defaultWindowSize) {
+      final acc = recentAttempts.isEmpty
+          ? 0.0
+          : recentAttempts.where((a) => a.isCorrect).length /
+              recentAttempts.length;
+      final avgTime = recentAttempts.isEmpty
+          ? 0
+          : (recentAttempts.map((a) => a.responseTimeMs).reduce((a, b) => a + b) ~/
+              recentAttempts.length);
+
       return AdaptiveDecision(
         action: AdaptiveAction.stayCurrent,
         adaptationAction: AdaptationAction.maintain,
         recommendedSpeedMs: currentFlashSpeedMs,
         recommendedLevel: currentLevel,
         fingerGuideEnabled: false,
-        reason: 'Chưa có đủ lịch sử bài làm.',
-        message: 'Bé hãy sẵn sàng bắt đầu bài học nào!',
+        reason:
+            'Chưa đủ $defaultWindowSize bài gần nhất để đánh giá thích ứng (${recentAttempts.length}/$defaultWindowSize bài).',
+        message: 'Bé hãy tiếp tục làm bài nhé!',
+        accuracy: acc,
+        avgResponseTimeMs: avgTime,
       );
     }
 
-    // Lấy cửa sổ trượt tối đa 5 câu hỏi gần nhất
+    // Lấy đúng 5 câu hỏi gần nhất từ danh sách
     final window = recentAttempts.take(defaultWindowSize).toList();
     final correctCount = window.where((a) => a.isCorrect).length;
-    final accuracy = correctCount / window.length;
+    final accuracy = correctCount / defaultWindowSize;
 
-    final avgTime =
-        window.map((a) => a.responseTimeMs).reduce((a, b) => a + b) /
-            window.length;
+    final totalTime =
+        window.map((a) => a.responseTimeMs).reduce((a, b) => a + b);
+    final avgTime = totalTime / defaultWindowSize;
 
-    // 1. Tăng tốc độ & Tăng độ khó: accuracy >= 80% & thời gian <= 2.5s
-    if (accuracy >= highAccuracyThreshold && avgTime <= fastResponseThresholdMs) {
-      final newSpeed = (currentFlashSpeedMs - speedStepMs).clamp(minSpeedMs, 2000);
-      final newLevel = min(currentLevel + 1, maxLevel);
+    // 1. Tăng tốc độ & Tăng độ khó: accuracy >= 80% & thời gian < 2500ms
+    if (accuracy >= 0.8 && avgTime < 2500) {
+      final newSpeed =
+          (currentFlashSpeedMs - 200).clamp(500, maxSpeedMs);
+      final newLevel = min(currentLevel + 1, 3);
       return AdaptiveDecision(
         action: AdaptiveAction.speedUp,
         adaptationAction: AdaptationAction.levelUp,
@@ -463,17 +479,18 @@ class AdaptiveLearningEngine {
         recommendedLevel: newLevel,
         fingerGuideEnabled: false,
         reason:
-            'Tỷ lệ đúng ${(accuracy * 100).toInt()}% >= 80% và thời gian phản hồi trung bình ${avgTime.toInt()}ms <= 2500ms. Tự động tăng tốc độ chớp số và nâng cấp bài toán.',
-        message: 'Bé tính siêu đẳng! Thầy tăng tốc độ chớp số lên nhé! 🚀',
+            'Tỷ lệ đúng ${(accuracy * 100).toInt()}% >= 80% và thời gian phản hồi trung bình ${avgTime.toInt()}ms < 2500ms. Đề xuất tăng độ khó và tăng tốc độ chớp số.',
+        message: 'Bé tính siêu đẳng! Thầy nâng độ khó lên nhé! 🚀',
         accuracy: accuracy,
         avgResponseTimeMs: avgTime.toInt(),
       );
     }
 
-    // 2. Giảm độ khó & Bật thị phạm ngón tay: accuracy < 60% hoặc thời gian >= 6.0s
-    if (accuracy < 0.6 || avgTime >= slowResponseThresholdMs) {
-      final newSpeed = (currentFlashSpeedMs + speedStepMs).clamp(500, maxSpeedMs);
-      final newLevel = max(currentLevel - 1, minLevel);
+    // 2. Giảm độ khó & Bật thị phạm ngón tay: accuracy < 50% hoặc thời gian > 6000ms
+    if (accuracy < 0.5 || avgTime > 6000) {
+      final newSpeed =
+          (currentFlashSpeedMs + 200).clamp(500, maxSpeedMs);
+      final newLevel = max(currentLevel - 1, 1);
       return AdaptiveDecision(
         action: AdaptiveAction.guideHighlight,
         adaptationAction: AdaptationAction.levelDown,
@@ -481,7 +498,7 @@ class AdaptiveLearningEngine {
         recommendedLevel: newLevel,
         fingerGuideEnabled: true,
         reason:
-            'Tỷ lệ đúng ${(accuracy * 100).toInt()}% < 60% hoặc thời gian phản hồi ${avgTime.toInt()}ms >= 6000ms. Tự động kích hoạt mô hình hướng dẫn gập mở ngón tay Finger Math.',
+            'Tỷ lệ đúng ${(accuracy * 100).toInt()}% < 50% hoặc thời gian phản hồi ${avgTime.toInt()}ms > 6000ms. Đề xuất giảm cấp độ khó và bật hướng dẫn ngón tay.',
         message: 'Không sao đâu! Thầy mở hướng dẫn từng bước giúp bé nhé! 💡',
         accuracy: accuracy,
         avgResponseTimeMs: avgTime.toInt(),
@@ -496,7 +513,7 @@ class AdaptiveLearningEngine {
       recommendedLevel: currentLevel,
       fingerGuideEnabled: false,
       reason:
-          'Bé đạt kết quả ổn định (${(accuracy * 100).toInt()}% đúng, ${avgTime.toInt()}ms). Giữ nguyên nhịp độ hiện tại để củng cố kỹ năng.',
+          'Bé đạt kết quả ổn định (${(accuracy * 100).toInt()}% đúng, ${avgTime.toInt()}ms). Giữ nguyên độ khó và tắt gợi ý bắt buộc.',
       message: 'Bé làm rất đều tay, cùng tiếp tục nào! ⭐',
       accuracy: accuracy,
       avgResponseTimeMs: avgTime.toInt(),

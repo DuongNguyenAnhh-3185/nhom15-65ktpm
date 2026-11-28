@@ -276,7 +276,7 @@ class _FlashAnzanScreenState extends State<FlashAnzanScreen> {
     if (_numbers.isEmpty) return '';
     final expression = StringBuffer('${_numbers.first}');
     for (final number in _numbers.skip(1)) {
-      expression..write(number < 0 ? ' - ${number.abs()}' : ' + $number');
+      expression.write(number < 0 ? ' - ${number.abs()}' : ' + $number');
     }
     return expression.toString();
   }

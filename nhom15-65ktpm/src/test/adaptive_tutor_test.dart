@@ -4,36 +4,90 @@ import 'package:soroban_kids_app/features/4_ai_voice_tutor/domain/engine/adaptiv
 import 'package:soroban_kids_app/shared/entities/attempt_log.dart';
 
 void main() {
-  group('Adaptive Tutor Engine Legacy Tests (Module 4 - Cẩm Ly)', () {
-    test('TC_AI_01: Tăng tốc độ và độ khó khi bé làm đúng 100% và rất nhanh', () {
-      final fastCorrectLogs = List.generate(
-        5,
+  group('Adaptive Tutor Engine Tests (Module 4 - Cẩm Ly)', () {
+    test('TC_AI_01: Case < 5 câu -> Giữ nguyên trạng thái hiện tại (stayCurrent), tắt gợi ý bắt buộc', () {
+      final fewLogs = List.generate(
+        4, // chỉ 4 bài, chưa đủ 5 bài
         (i) => AttemptLog(
           questionId: 'q_$i',
           userAnswer: 5,
           isCorrect: true,
-          responseTimeMs: 1500, // 1.5s
+          responseTimeMs: 1200,
           answeredVia: 'voice',
           timestamp: DateTime.now().toIso8601String(),
         ),
       );
 
       final decision = AdaptiveTutorEngine.evaluatePerformance(
-        recentAttempts: fastCorrectLogs,
+        recentAttempts: fewLogs,
         currentFlashSpeedMs: 1200,
+        currentLevel: 2,
+      );
+
+      expect(decision.action, AdaptiveAction.stayCurrent);
+      expect(decision.recommendedSpeedMs, 1200);
+      expect(decision.recommendedLevel, 2);
+      expect(decision.showFingerHint, isFalse);
+      expect(decision.fingerGuideEnabled, isFalse);
+    });
+
+    test('TC_AI_02: Case tăng độ khó -> đúng >= 80% & thời gian < 2500ms -> level + 1, speed - 200ms', () {
+      final fastLogs = List.generate(
+        5,
+        (i) => AttemptLog(
+          questionId: 'q_$i',
+          userAnswer: 5,
+          isCorrect: i != 0, // 4/5 câu đúng = 80%
+          responseTimeMs: 1600, // 1.6s < 2500ms
+          answeredVia: 'voice',
+          timestamp: DateTime.now().toIso8601String(),
+        ),
+      );
+
+      final decision = AdaptiveTutorEngine.evaluatePerformance(
+        recentAttempts: fastLogs,
+        currentFlashSpeedMs: 1200,
+        currentLevel: 1,
       );
 
       expect(decision.action, AdaptiveAction.speedUp);
+      expect(decision.recommendedLevel, 2); // 1 -> 2
       expect(decision.recommendedSpeedMs, 1000); // 1200 - 200 = 1000ms
+      expect(decision.showFingerHint, isFalse);
+      expect(decision.fingerGuideEnabled, isFalse);
     });
 
-    test('TC_AI_02: Chuyển sang hướng dẫn thị phạm khi bé làm sai nhiều', () {
-      final strugglingLogs = [
+    test('TC_AI_03: Case giới hạn trần độ khó tối đa 3 và sàn tốc độ không thấp hơn 500ms', () {
+      final fastLogs = List.generate(
+        5,
+        (i) => AttemptLog(
+          questionId: 'q_$i',
+          userAnswer: 5,
+          isCorrect: true, // 100%
+          responseTimeMs: 1000,
+          answeredVia: 'voice',
+          timestamp: DateTime.now().toIso8601String(),
+        ),
+      );
+
+      final decision = AdaptiveTutorEngine.evaluatePerformance(
+        recentAttempts: fastLogs,
+        currentFlashSpeedMs: 600,
+        currentLevel: 3, // Đã ở cấp 3 (tối đa 3)
+      );
+
+      expect(decision.action, AdaptiveAction.speedUp);
+      expect(decision.recommendedLevel, 3); // Giữ nguyên cấp 3 tối đa
+      expect(decision.recommendedSpeedMs, 500); // 600 - 200 = 400 -> bị chặn ở sàn 500ms
+    });
+
+    test('TC_AI_04: Case giảm độ khó do tỷ lệ đúng < 50% -> level - 1, bật showFingerHint = true', () {
+      final lowAccuracyLogs = [
         AttemptLog(
           questionId: 'q_1',
           userAnswer: 2,
           isCorrect: false,
-          responseTimeMs: 7000,
+          responseTimeMs: 3500,
           answeredVia: 'abacus_touch',
           timestamp: DateTime.now().toIso8601String(),
         ),
@@ -41,37 +95,107 @@ void main() {
           questionId: 'q_2',
           userAnswer: 3,
           isCorrect: false,
-          responseTimeMs: 6500,
+          responseTimeMs: 3800,
           answeredVia: 'abacus_touch',
           timestamp: DateTime.now().toIso8601String(),
         ),
         AttemptLog(
           questionId: 'q_3',
+          userAnswer: 4,
+          isCorrect: false,
+          responseTimeMs: 3200,
+          answeredVia: 'abacus_touch',
+          timestamp: DateTime.now().toIso8601String(),
+        ),
+        AttemptLog(
+          questionId: 'q_4',
           userAnswer: 5,
-          isCorrect: true,
-          responseTimeMs: 4000,
+          isCorrect: true, // Đúng 1
+          responseTimeMs: 3000,
+          answeredVia: 'voice',
+          timestamp: DateTime.now().toIso8601String(),
+        ),
+        AttemptLog(
+          questionId: 'q_5',
+          userAnswer: 6,
+          isCorrect: true, // Đúng 2 -> 2/5 = 40% < 50%
+          responseTimeMs: 3100,
           answeredVia: 'voice',
           timestamp: DateTime.now().toIso8601String(),
         ),
       ];
 
       final decision = AdaptiveTutorEngine.evaluatePerformance(
-        recentAttempts: strugglingLogs,
-        currentFlashSpeedMs: 1200,
+        recentAttempts: lowAccuracyLogs,
+        currentFlashSpeedMs: 1000,
+        currentLevel: 3,
       );
 
       expect(decision.action, AdaptiveAction.guideHighlight);
-      expect(decision.recommendedSpeedMs, 1400); // 1200 + 200 = 1400ms
+      expect(decision.recommendedLevel, 2); // 3 -> 2
+      expect(decision.recommendedSpeedMs, 1200); // 1000 + 200 = 1200ms
+      expect(decision.showFingerHint, isTrue);
+      expect(decision.fingerGuideEnabled, isTrue);
     });
 
-    test('TC_AI_03: Duy trì độ khó khi bé làm bài ổn định', () {
+    test('TC_AI_05: Case giảm độ khó do thời gian phản hồi trung bình > 6000ms -> bật showFingerHint = true', () {
+      final slowLogs = List.generate(
+        5,
+        (i) => AttemptLog(
+          questionId: 'q_$i',
+          userAnswer: 5,
+          isCorrect: true, // Đúng 100% nhưng rất chậm
+          responseTimeMs: 6500, // > 6000ms
+          answeredVia: 'abacus_touch',
+          timestamp: DateTime.now().toIso8601String(),
+        ),
+      );
+
+      final decision = AdaptiveTutorEngine.evaluatePerformance(
+        recentAttempts: slowLogs,
+        currentFlashSpeedMs: 1200,
+        currentLevel: 2,
+      );
+
+      expect(decision.action, AdaptiveAction.guideHighlight);
+      expect(decision.recommendedLevel, 1); // 2 -> 1
+      expect(decision.showFingerHint, isTrue);
+      expect(decision.fingerGuideEnabled, isTrue);
+    });
+
+    test('TC_AI_06: Case sàn độ khó tối thiểu 1 -> không giảm xuống dưới 1, vẫn bật showFingerHint = true', () {
+      final strugglingLogs = List.generate(
+        5,
+        (i) => AttemptLog(
+          questionId: 'q_$i',
+          userAnswer: 0,
+          isCorrect: false,
+          responseTimeMs: 7000,
+          answeredVia: 'abacus_touch',
+          timestamp: DateTime.now().toIso8601String(),
+        ),
+      );
+
+      final decision = AdaptiveTutorEngine.evaluatePerformance(
+        recentAttempts: strugglingLogs,
+        currentFlashSpeedMs: 1200,
+        currentLevel: 1, // Đang ở cấp 1
+      );
+
+      expect(decision.action, AdaptiveAction.guideHighlight);
+      expect(decision.recommendedLevel, 1); // Không giảm dưới 1
+      expect(decision.showFingerHint, isTrue);
+      expect(decision.fingerGuideEnabled, isTrue);
+    });
+
+    test('TC_AI_07: Case giữ nguyên ở giữa (accuracy 60%, time 3500ms) -> stayCurrent, tắt gợi ý bắt buộc', () {
       final steadyLogs = List.generate(
         5,
         (i) => AttemptLog(
           questionId: 'q_$i',
           userAnswer: 5,
-          isCorrect: i != 0, // 4/5 đúng = 80%
-          responseTimeMs: 3500, // 3.5s
+          isCorrect: i < 3, // 3/5 đúng = 60%
+          responseTimeMs: 3500, // 3.5s (nằm giữa 2500ms và 6000ms)
           answeredVia: 'abacus_touch',
           timestamp: DateTime.now().toIso8601String(),
         ),
@@ -80,10 +204,14 @@ void main() {
       final decision = AdaptiveTutorEngine.evaluatePerformance(
         recentAttempts: steadyLogs,
         currentFlashSpeedMs: 1200,
+        currentLevel: 2,
       );
 
       expect(decision.action, AdaptiveAction.stayCurrent);
+      expect(decision.recommendedLevel, 2);
       expect(decision.recommendedSpeedMs, 1200);
+      expect(decision.showFingerHint, isFalse);
+      expect(decision.fingerGuideEnabled, isFalse);
     });
   });
 

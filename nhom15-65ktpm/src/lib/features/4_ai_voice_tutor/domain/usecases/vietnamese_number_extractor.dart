@@ -2,7 +2,7 @@ import 'package:equatable/equatable.dart';
 
 enum ExtractionType {
   number,
-  unknown, // Trẻ nói từ chối / không biết (ví dụ: "con không biết", "chịu", "khó quá")
+  unknown, // Trẻ nói từ chối / không biết (ví dụ: "con không biết", "chịu", "khó quá", "bỏ qua")
   unrecognized, // Chuỗi không nhận diện được số hợp lệ
   empty,
 }
@@ -70,9 +70,11 @@ class ExtractionResult extends Equatable {
 }
 
 /// Bộ phân tích và trích xuất số tiếng Việt cho trẻ em:
-/// 1. Chuẩn hóa & loại bỏ từ đệm, từ xưng hô lễ phép ("dạ", "thưa cô", "thưa thầy", "cô ơi", "ơi", "kết quả là", "đáp án là", "bằng", "là", "cho con hỏi", "số"...)
-/// 2. Bóc tách số dạng chữ số (-999 đến 9999) & số dạng chữ (hàng chục, hàng trăm, hàng nghìn, phương ngữ như "lăm", "nhăm", "mốt", "hăm mốt", "tư", "linh", "lẻ", số âm "âm năm" / "-5")
-/// 3. Nhận diện các câu từ chối / chưa biết ("con không biết", "chịu", "khó quá", "bỏ qua") để trả về ExtractionResult.unknown và kích hoạt gợi ý (hint) thay vì tính là câu trả lời sai
+/// 1. Chuẩn hóa & loại bỏ từ đệm, từ xưng hô lễ phép ("dạ", "thưa cô", "thưa thầy", "kết quả là", "đáp án là", "bằng", "là", "ạ", "ơi",...)
+/// 2. Bóc tách số dạng chữ số lẫn chữ viết trong phạm vi số nguyên 0 đến 99.
+///    - Nếu số ngoài phạm vi 0-99 (hoặc số âm) thì trả về null.
+/// 3. Nhận diện chuẩn các biến thể vùng miền: "lăm" -> 5, "nhăm" -> 5, "mốt" -> 1, "tư" -> 4, "hăm" -> 20.
+/// 4. Nhận diện câu từ chối: "con không biết", "không biết", "chịu", "bỏ qua", "khó quá" -> bắt buộc trả về null (ExtractionResult.unknown).
 class VietnameseNumberExtractor {
   static const Map<String, int> _unitWords = {
     'không': 0,
@@ -111,7 +113,8 @@ class VietnameseNumberExtractor {
         .replaceAll(RegExp(r'[,.?!;:]'), ' ')
         .trim();
 
-    // 2. Kiểm tra mẫu từ chối / không biết của trẻ em -> Kích hoạt gợi ý (Hint)
+    // 2. Xử lý câu từ chối: "con không biết", "không biết", "chịu", "bỏ qua", "khó quá"
+    // Bắt buộc trả về null (ExtractionResult.unknown) để kích hoạt gợi ý thay vì tính là trả lời sai
     final refusalPatterns = [
       'không biết',
       'con không biết',
@@ -144,44 +147,40 @@ class VietnameseNumberExtractor {
       }
     }
 
-    // 3. Kiểm tra nếu có chữ số trực tiếp trong câu (ví dụ STT trả về "15", "bằng 25", "-5", "âm 5")
-    final digitMatch = RegExp(r'(?:(?:âm|trừ|-)\s*(\d+))|(-?\d+)').firstMatch(rawSpeech.toLowerCase());
+    // 3. Nếu câu chứa số âm (dạng -5 hoặc "âm ...", "trừ ...") -> ngoài phạm vi 0-99 -> trả về null
+    if (rawSpeech.contains(RegExp(r'-\s*\d+')) ||
+        normalized.contains('âm ') ||
+        normalized.contains('trừ ') ||
+        normalized.startsWith('-')) {
+      return ExtractionResult.empty(rawSpeech: rawSpeech);
+    }
+
+    // 4. Kiểm tra nếu có chữ số trực tiếp trong câu (ví dụ STT trả về "25", "dạ bằng 25")
+    final digitMatch = RegExp(r'\b\d+\b').firstMatch(rawSpeech);
     if (digitMatch != null) {
-      if (digitMatch.group(1) != null) {
-        final parsed = int.tryParse(digitMatch.group(1)!);
-        if (parsed != null) {
-          return ExtractionResult.number(
-            value: -parsed,
-            rawSpeech: rawSpeech,
-            normalizedSpeech: normalized,
-          );
-        }
-      } else if (digitMatch.group(2) != null) {
-        final parsed = int.tryParse(digitMatch.group(2)!);
-        if (parsed != null) {
+      final parsed = int.tryParse(digitMatch.group(0)!);
+      if (parsed != null) {
+        // Chỉ chấp nhận trong phạm vi 0 đến 99, ngoài phạm vi trả về null
+        if (parsed >= 0 && parsed <= 99) {
           return ExtractionResult.number(
             value: parsed,
             rawSpeech: rawSpeech,
             normalizedSpeech: normalized,
           );
+        } else {
+          return ExtractionResult.empty(rawSpeech: rawSpeech);
         }
       }
     }
 
-    // 4. Nhận diện số âm dạng chữ ("âm năm", "trừ năm", "âm mười lăm"...)
-    bool isNegative = false;
+    // Kiểm tra các từ chỉ hàng trăm, hàng nghìn, triệu, tỷ -> ngoài phạm vi 0-99
     final paddedCheck = ' $normalized ';
-    if (paddedCheck.contains(' âm ') ||
-        paddedCheck.contains(' trừ ') ||
-        paddedCheck.contains(' - ') ||
-        normalized.startsWith('-')) {
-      isNegative = true;
-      normalized = paddedCheck
-          .replaceAll(' âm ', ' ')
-          .replaceAll(' trừ ', ' ')
-          .replaceAll(' - ', ' ')
-          .replaceAll(RegExp(r'\s+'), ' ')
-          .trim();
+    if (paddedCheck.contains(' trăm ') ||
+        paddedCheck.contains(' nghìn ') ||
+        paddedCheck.contains(' ngàn ') ||
+        paddedCheck.contains(' triệu ') ||
+        paddedCheck.contains(' tỷ ')) {
+      return ExtractionResult.empty(rawSpeech: rawSpeech);
     }
 
     // 5. Chuẩn hóa các biến thể phương ngữ thông dụng
@@ -190,6 +189,8 @@ class VietnameseNumberExtractor {
     normalized = normalized.replaceAll('hăm nhăm', 'hai mươi lăm');
     normalized = normalized.replaceAll('hăm lăm', 'hai mươi lăm');
     normalized = normalized.replaceAll('hăm tư', 'hai mươi bốn');
+    normalized = normalized.replaceAll('hăm hai', 'hai mươi hai');
+    normalized = normalized.replaceAll('hăm ba', 'hai mươi ba');
     normalized = normalized.replaceAllMapped(
       RegExp(r'\bhăm\b'),
       (match) => 'hai mươi',
@@ -263,15 +264,19 @@ class VietnameseNumberExtractor {
       return ExtractionResult.empty(rawSpeech: rawSpeech);
     }
 
-    // 7. Phân tích ngữ nghĩa số tiếng Việt
+    // 7. Phân tích ngữ nghĩa số tiếng Việt (phạm vi 0 đến 99)
     final parsedValue = _parseTokens(tokens);
     if (parsedValue != null) {
-      final finalVal = isNegative ? -parsedValue : parsedValue;
-      return ExtractionResult.number(
-        value: finalVal,
-        rawSpeech: rawSpeech,
-        normalizedSpeech: normalized,
-      );
+      // Kiểm tra phạm vi 0 đến 99
+      if (parsedValue >= 0 && parsedValue <= 99) {
+        return ExtractionResult.number(
+          value: parsedValue,
+          rawSpeech: rawSpeech,
+          normalizedSpeech: normalized,
+        );
+      } else {
+        return ExtractionResult.empty(rawSpeech: rawSpeech);
+      }
     }
 
     return ExtractionResult.unrecognized(
@@ -280,96 +285,57 @@ class VietnameseNumberExtractor {
     );
   }
 
-  /// Hàm tiện ích tương thích ngược trực tiếp trả về int?
-  /// Trả về null khi trẻ từ chối trả lời (isUnknown) hoặc khi không tìm thấy số hợp lệ.
+  /// Hàm tiện ích chính nhận vào chuỗi tiếng Việt và trả về int? trong phạm vi 0 đến 99.
+  /// Bắt buộc trả về null nếu trẻ từ chối trả lời (isUnknown) hoặc số ngoài phạm vi 0-99.
   static int? extractNumber(String rawSpeech) {
     return extract(rawSpeech).value;
   }
 
   static int? _parseTokens(List<String> words) {
-    // Trường hợp 1 từ: "năm" -> 5, "mười" -> 10, "không" -> 0, "trăm" -> 100, "nghìn" -> 1000
+    // Nếu chứa các từ ngoài phạm vi 0-99 (trăm, nghìn, ngàn, triệu, tỷ) -> trả về null
+    if (words.contains('trăm') ||
+        words.contains('nghìn') ||
+        words.contains('ngàn') ||
+        words.contains('triệu') ||
+        words.contains('tỷ')) {
+      return null;
+    }
+
+    // Trường hợp 1 từ: 0..10
+    // "không" -> 0, "năm" -> 5, "mười" / "chục" -> 10, "lăm"/"nhăm" -> 5, "mốt" -> 1, "tư" -> 4
     if (words.length == 1) {
       final w = words.first;
       if (w == 'mười' || w == 'chục') return 10;
-      if (w == 'trăm') return 100;
-      if (w == 'nghìn' || w == 'ngàn') return 1000;
       if (_unitWords.containsKey(w)) return _unitWords[w];
       return null;
     }
 
-    // Trường hợp hàng nghìn / ngàn: ví dụ "một nghìn", "hai ngàn năm trăm"
-    if (words.contains('nghìn') || words.contains('ngàn')) {
-      final nghinWord = words.contains('nghìn') ? 'nghìn' : 'ngàn';
-      final nghinIndex = words.indexOf(nghinWord);
-      int thousands = 1;
-      if (nghinIndex > 0) {
-        thousands = _unitWords[words[nghinIndex - 1]] ?? 1;
-      }
-
-      final remainderWords = words.sublist(nghinIndex + 1);
-      if (remainderWords.isEmpty) {
-        return thousands * 1000;
-      }
-
-      final remValue = _parseTokens(remainderWords);
-      if (remValue != null) {
-        return thousands * 1000 + remValue;
-      }
-      return thousands * 1000;
-    }
-
-    // Trường hợp hàng trăm: ví dụ "một trăm", "một trăm linh năm", "hai trăm hai mươi mốt"
-    if (words.contains('trăm')) {
-      final tramIndex = words.indexOf('trăm');
-      int hundreds = 1;
-      if (tramIndex > 0) {
-        hundreds = _unitWords[words[tramIndex - 1]] ?? 1;
-      }
-
-      final remainderWords = words.sublist(tramIndex + 1);
-      if (remainderWords.isEmpty) {
-        return hundreds * 100;
-      }
-
-      // Xử lý "linh" hoặc "lẻ": ví dụ "linh năm" -> 5
-      if (remainderWords.first == 'linh' || remainderWords.first == 'lẻ') {
-        if (remainderWords.length > 1) {
-          final unit = _unitWords[remainderWords[1]];
-          if (unit != null) return hundreds * 100 + unit;
-        }
-        return hundreds * 100;
-      }
-
-      final remValue = _parseTokens(remainderWords);
-      if (remValue != null) {
-        return hundreds * 100 + remValue;
-      }
-      return hundreds * 100;
-    }
-
     // Trường hợp 2 từ:
-    // "mười một" -> 11, "mười lăm" -> 15
-    // "hai mươi" -> 20, "hai mốt" -> 21, "ba lăm" -> 35, "hai nhăm" -> 25, "bốn tư" -> 44
+    // "linh" / "lẻ": ví dụ "linh năm" -> 5, "lẻ bảy" -> 7
+    if (words.length == 2 && (words[0] == 'linh' || words[0] == 'lẻ')) {
+      return _unitWords[words[1]];
+    }
+
+    // "mười một" -> 11, "mười lăm" / "mười nhăm" -> 15, "mười tư" -> 14
+    if (words.length == 2 && words[0] == 'mười') {
+      final unit = _unitWords[words[1]];
+      if (unit != null) return 10 + unit;
+      return null;
+    }
+
+    // "hai mươi" -> 20, "hai chục" -> 20, "hai mốt" -> 21, "ba lăm" -> 35, "hai nhăm" -> 25, "bốn tư" -> 44, "chín chín" -> 99
     if (words.length == 2) {
-      final w1 = words[0];
-      final w2 = words[1];
-
-      if (w1 == 'mười') {
-        final unit = _unitWords[w2];
-        if (unit != null) return 10 + unit;
-      }
-
-      final tens = _unitWords[w1];
+      final tens = _unitWords[words[0]];
       if (tens != null) {
-        if (w2 == 'mươi' || w2 == 'chục') return tens * 10;
-        final unit = _unitWords[w2];
+        if (words[1] == 'mươi' || words[1] == 'chục') return tens * 10;
+        final unit = _unitWords[words[1]];
         if (unit != null) return tens * 10 + unit;
       }
       return null;
     }
 
     // Trường hợp 3 từ:
-    // "hai mươi mốt" -> 21, "ba mươi lăm" -> 35, "bốn mươi tư" -> 44
+    // "hai mươi mốt" -> 21, "ba mươi lăm" -> 35, "hai mươi nhăm" -> 25, "bốn mươi tư" -> 44, "chín mươi chín" -> 99
     if (words.length == 3) {
       final w1 = words[0];
       final w2 = words[1];

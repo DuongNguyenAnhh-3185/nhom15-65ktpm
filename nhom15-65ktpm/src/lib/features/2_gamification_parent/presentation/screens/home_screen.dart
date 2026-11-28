@@ -138,7 +138,6 @@ class _HomeScreenState extends State<HomeScreen> {
                         style: Theme.of(context).textTheme.titleLarge,
                       ),
                       const SizedBox(height: 12),
-                      const SizedBox(height: 24),
                       GridView.count(
                         crossAxisCount: isWide ? 4 : 2,
                         crossAxisSpacing: 12,
