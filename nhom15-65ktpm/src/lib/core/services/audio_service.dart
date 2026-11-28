@@ -171,9 +171,18 @@ class AudioService {
   Future<bool> _playSoundEffect(AudioPlayer player) async {
     final generation = ++_feedbackGeneration;
     try {
+      // 1. Dừng và tua về 0 (pause & seek to 0) cho tất cả các audio instance để tránh chồng tiếng
+      await Future.wait<void>([
+        _successPlayer.stop(),
+        _incorrectPlayer.stop(),
+        _flutterTts.stop(),
+      ]);
+      await Future.wait<void>([
+        _successPlayer.seek(Duration.zero),
+        _incorrectPlayer.seek(Duration.zero),
+      ]);
+
       await _feedbackAssetsReady;
-      if (generation != _feedbackGeneration) return false;
-      await player.seek(Duration.zero);
       if (generation != _feedbackGeneration) return false;
       unawaited(player.play());
       return true;
@@ -197,12 +206,17 @@ class AudioService {
     await Future.wait<void>([
       _successPlayer.stop(),
       _incorrectPlayer.stop(),
+      _flutterTts.stop(),
     ]);
-    await _flutterTts.stop();
+    await Future.wait<void>([
+      _successPlayer.seek(Duration.zero),
+      _incorrectPlayer.seek(Duration.zero),
+    ]);
   }
 
   /// Lời khen ngợi sinh động khi bé làm chính xác
   Future<void> playSuccessFeedback([String? customPraise]) async {
+    await stopFeedback();
     await HapticFeedback.mediumImpact();
     const praises = [
       'Hoan hô bé! Bé làm hoàn toàn chính xác! Bé giỏi quá!',
@@ -216,6 +230,7 @@ class AudioService {
 
   /// Lời động viên và đọc hướng dẫn cụ thể khi bé làm sai
   Future<void> playEncouragementFeedback([String? explanation]) async {
+    await stopFeedback();
     await HapticFeedback.selectionClick();
     if (explanation != null && explanation.trim().isNotEmpty) {
       await speak('Bé đừng buồn nhé! Cùng nghe hướng dẫn nào: $explanation');

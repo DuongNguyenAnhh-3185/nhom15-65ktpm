@@ -66,6 +66,7 @@ class _FlashAnzanScreenState extends State<FlashAnzanScreen> {
   int _expectedAnswer = 0;
   int? _userAnswer;
   bool _isCorrect = false;
+  bool _isProcessing = false;
   int _pointsEarned = 0;
   int _streakMultiplier = 1;
   DateTime _questionStartTime = DateTime.now();
@@ -126,6 +127,7 @@ class _FlashAnzanScreenState extends State<FlashAnzanScreen> {
       _currentIndex = 0;
       _userAnswer = null;
       _isCorrect = false;
+      _isProcessing = false;
       _pointsEarned = 0;
       _streakMultiplier = 1;
       _countdownValue = 3;
@@ -211,7 +213,8 @@ class _FlashAnzanScreenState extends State<FlashAnzanScreen> {
 
   Future<void> _submitAnswer(int answer,
       {String method = 'abacus_touch'}) async {
-    if (_state != FlashState.waitingAnswer) return;
+    if (_state != FlashState.waitingAnswer || _isProcessing) return;
+    _isProcessing = true;
 
     final isCorrect = answer == _expectedAnswer;
     final responseTime =

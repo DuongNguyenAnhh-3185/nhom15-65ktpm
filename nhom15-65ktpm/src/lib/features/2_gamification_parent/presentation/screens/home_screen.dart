@@ -32,7 +32,8 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final AudioService _audioService = sl<AudioService>();
-  final AuthService _authService = sl<AuthService>();
+  final AuthService? _authService =
+      sl.isRegistered<AuthService>() ? sl<AuthService>() : null;
   final StorageService _storageService = sl<StorageService>();
   ChildProfile? _profile;
   bool _showReminderBanner = false;
@@ -558,7 +559,7 @@ class _HomeScreenState extends State<HomeScreen> {
         ],
       ),
     );
-    if (shouldSignOut == true) await _authService.signOut();
+    if (shouldSignOut == true) await _authService?.signOut();
   }
 
   void _openLesson(int level) {
