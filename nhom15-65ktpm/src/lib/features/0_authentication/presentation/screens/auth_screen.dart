@@ -18,6 +18,7 @@ class _AuthScreenState extends State<AuthScreen> {
       RegExp(r'^(?=.*[A-Za-z])(?=.*\d)(?=.*[^A-Za-z\d\s])\S{8,}$');
 
   final _formKey = GlobalKey<FormState>();
+  final _parentNameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
@@ -30,10 +31,16 @@ class _AuthScreenState extends State<AuthScreen> {
 
   @override
   void dispose() {
+    _parentNameController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
     super.dispose();
+  }
+
+  String? _validateParentName(String? value) {
+    if ((value?.trim() ?? '').isEmpty) return 'Vui lòng nhập họ và tên.';
+    return null;
   }
 
   String? _validateEmail(String? value) {
@@ -75,6 +82,7 @@ class _AuthScreenState extends State<AuthScreen> {
       final email = _emailController.text.trim().toLowerCase();
       if (_isRegistering) {
         await _authService.register(
+          parentName: _parentNameController.text,
           email: email,
           password: _passwordController.text,
         );
@@ -124,6 +132,7 @@ class _AuthScreenState extends State<AuthScreen> {
     setState(() {
       _isRegistering = !_isRegistering;
       _submitError = null;
+      _parentNameController.clear();
       _passwordController.clear();
       _confirmPasswordController.clear();
     });
@@ -179,6 +188,21 @@ class _AuthScreenState extends State<AuthScreen> {
                           style: const TextStyle(color: AppColors.textLight),
                         ),
                         const SizedBox(height: 24),
+                        if (_isRegistering) ...[
+                          TextFormField(
+                            controller: _parentNameController,
+                            textCapitalization: TextCapitalization.words,
+                            textInputAction: TextInputAction.next,
+                            autofillHints: const [AutofillHints.name],
+                            decoration: const InputDecoration(
+                              labelText: 'Họ và tên',
+                              prefixIcon: Icon(Icons.person_outline),
+                              border: OutlineInputBorder(),
+                            ),
+                            validator: _validateParentName,
+                          ),
+                          const SizedBox(height: 14),
+                        ],
                         TextFormField(
                           controller: _emailController,
                           keyboardType: TextInputType.emailAddress,

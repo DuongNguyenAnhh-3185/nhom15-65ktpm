@@ -24,9 +24,11 @@ enum QuestionLevel {
 class QuestionGenerator {
   QuestionGenerator({Random? random}) : _random = random ?? Random();
 
+  static const int _recentQuestionLimit = 10;
+
   final Random _random;
   List<int>? _previousFlashOperands;
-  final Map<QuestionLevel, String> _previousQuestionKeys = {};
+  final Map<QuestionLevel, List<String>> _recentQuestionKeys = {};
 
   /// Generates a question for [level]. Kept compatible with screens that pass
   /// the level as an integer.
@@ -48,8 +50,8 @@ class QuestionGenerator {
         return _generateDistinctQuestion(
           level: level,
           generate: () => _generateBasic(operation: operation),
-          generateAlternative: (previousKey) =>
-              _generateBasicAlternative(operation, previousKey),
+          generateAlternative: (excludedKeys) =>
+              _generateBasicAlternative(operation, excludedKeys),
         );
       case QuestionLevel.friendRules:
         return _generateDistinctQuestion(
@@ -58,10 +60,10 @@ class QuestionGenerator {
             operation: operation,
             questionType: questionType,
           ),
-          generateAlternative: (previousKey) => _generateFriendRules(
+          generateAlternative: (excludedKeys) => _generateFriendRules(
             operation: operation,
             questionType: questionType,
-            excludedQuestionKey: previousKey,
+            excludedQuestionKeys: excludedKeys,
           ),
         );
       case QuestionLevel.flashAnzan:
@@ -75,22 +77,41 @@ class QuestionGenerator {
   SorobanQuestion _generateDistinctQuestion({
     required QuestionLevel level,
     required SorobanQuestion Function() generate,
-    required SorobanQuestion Function(String previousKey) generateAlternative,
+    required SorobanQuestion Function(Set<String> excludedKeys)
+        generateAlternative,
   }) {
-    final previousKey = _previousQuestionKeys[level];
+    final recentKeys = List<String>.from(
+      _recentQuestionKeys[level] ?? const [],
+    );
+    final excludedKeys = recentKeys.toSet();
     var question = generate();
     var attempts = 1;
 
-    while (_questionKey(question) == previousKey && attempts < 10) {
+    while (excludedKeys.contains(_questionKey(question)) && attempts < 20) {
       question = generate();
       attempts++;
     }
 
-    if (_questionKey(question) == previousKey) {
-      question = generateAlternative(previousKey!);
+    if (excludedKeys.contains(_questionKey(question))) {
+      for (var keepRecentCount = recentKeys.length;
+          keepRecentCount >= 0;
+          keepRecentCount--) {
+        final relaxedExclusions = recentKeys.take(keepRecentCount).toSet();
+        try {
+          question = generateAlternative(relaxedExclusions);
+          break;
+        } on StateError {
+          if (keepRecentCount == 0) rethrow;
+        }
+      }
     }
 
-    _previousQuestionKeys[level] = _questionKey(question);
+    final history = _recentQuestionKeys.putIfAbsent(level, () => []);
+    history.remove(_questionKey(question));
+    history.add(_questionKey(question));
+    if (history.length > _recentQuestionLimit) {
+      history.removeRange(0, history.length - _recentQuestionLimit);
+    }
     return question;
   }
 
@@ -202,7 +223,7 @@ class QuestionGenerator {
   SorobanQuestion _generateFriendRules({
     ArithmeticOperation? operation,
     QuestionType? questionType,
-    String? excludedQuestionKey,
+    Set<String> excludedQuestionKeys = const {},
   }) {
     final selectedOperation = operation ?? _randomOperation();
     final selectedType = questionType ??
@@ -233,14 +254,13 @@ class QuestionGenerator {
           continue;
         }
 
-        if (excludedQuestionKey != null &&
-            _questionIdentity(
-                  level: QuestionLevel.friendRules.value,
-                  type: selectedType,
-                  operation: selectedOperation,
-                  operands: [first, second],
-                ) ==
-                excludedQuestionKey) {
+        final key = _questionIdentity(
+          level: QuestionLevel.friendRules.value,
+          type: selectedType,
+          operation: selectedOperation,
+          operands: [first, second],
+        );
+        if (excludedQuestionKeys.contains(key)) {
           continue;
         }
 
@@ -336,12 +356,16 @@ class QuestionGenerator {
 
   SorobanQuestion _generateBasicAlternative(
     ArithmeticOperation? requestedOperation,
-    String previousKey,
+    Set<String> excludedKeys,
   ) {
     const operations = [
       ArithmeticOperation.addition,
       ArithmeticOperation.subtraction,
     ];
+    ArithmeticOperation? selectedOperation;
+    List<int>? selectedOperands;
+    var validQuestionCount = 0;
+
     for (final operation in operations) {
       if (requestedOperation != null && operation != requestedOperation) {
         continue;
@@ -358,23 +382,33 @@ class QuestionGenerator {
             operation: operation,
             operands: operands,
           );
-          if (key == previousKey) continue;
+          if (excludedKeys.contains(key)) continue;
 
-          final answer = operation == ArithmeticOperation.addition
-              ? first + second
-              : first - second;
-          return SorobanQuestion(
-            id: 'level1_${DateTime.now().microsecondsSinceEpoch}',
-            level: QuestionLevel.basic.value,
-            operands: operands,
-            operation: operation,
-            expectedAnswer: answer,
-            type: QuestionType.recognition,
-          );
+          validQuestionCount++;
+          if (_random.nextInt(validQuestionCount) == 0) {
+            selectedOperation = operation;
+            selectedOperands = operands;
+          }
         }
       }
     }
 
-    throw StateError('No distinct Level 1 question is available.');
+    final operation = selectedOperation;
+    final operands = selectedOperands;
+    if (operation == null || operands == null) {
+      throw StateError('No distinct Level 1 question is available.');
+    }
+
+    final answer = operation == ArithmeticOperation.addition
+        ? operands[0] + operands[1]
+        : operands[0] - operands[1];
+    return SorobanQuestion(
+      id: 'level1_${DateTime.now().microsecondsSinceEpoch}',
+      level: QuestionLevel.basic.value,
+      operands: operands,
+      operation: operation,
+      expectedAnswer: answer,
+      type: QuestionType.recognition,
+    );
   }
 }
