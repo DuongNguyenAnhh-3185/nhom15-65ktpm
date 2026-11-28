@@ -293,6 +293,25 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('cancelling Parental Gate keeps the Home screen and no dashboard',
+      (WidgetTester tester) async {
+    await tester.pumpWidget(const MaterialApp(home: HomeScreen()));
+    await tester.pumpAndSettle();
+
+    await tester.ensureVisible(find.text('Phụ huynh'));
+    await tester.tap(find.text('Phụ huynh'));
+    await tester.pumpAndSettle();
+    expect(find.byType(ParentalGateDialog), findsOneWidget);
+
+    await tester.tap(find.text('Quay lại'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(ParentalGateDialog), findsNothing);
+    expect(find.byType(ParentDashboardScreen), findsNothing);
+    expect(find.text('Phụ huynh'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets(
       'tapping practice and selecting Toan co ban navigates to LessonPlayScreen',
       (WidgetTester tester) async {

@@ -7,14 +7,28 @@ import '../../features/2_gamification_parent/domain/streak_calculator.dart';
 class GamificationResult {
   final ChildProfile updatedProfile;
   final List<BadgeItem> newlyUnlockedBadges;
+  final int pointsEarned;
+  final int streakMultiplier;
 
   const GamificationResult({
     required this.updatedProfile,
     required this.newlyUnlockedBadges,
+    required this.pointsEarned,
+    required this.streakMultiplier,
   });
 }
 
 class GamificationService {
+  static const int pointsPerCorrectAnswer = 10;
+
+  /// Raises the reward multiplier at the same milestones as streak badges.
+  static int multiplierForStreak(int streak) {
+    if (streak >= 14) return 4;
+    if (streak >= 7) return 3;
+    if (streak >= 3) return 2;
+    return 1;
+  }
+
   static List<BadgeItem> unlockedBadgesFor(ChildProfile profile) {
     final unlockedIds = profile.unlockedBadgeIds.toSet();
     return BadgeDefinitions.allBadges
@@ -50,6 +64,12 @@ class GamificationService {
     );
 
     final newLongest = max(profile.longestStreak, newStreak);
+    // StorageService returns recent attempts newest-first; the first log is
+    // the answer that triggered this completion.
+    final streakMultiplier = multiplierForStreak(newStreak);
+    final pointsEarned = allLogs.isNotEmpty && allLogs.first.isCorrect
+        ? pointsPerCorrectAnswer * streakMultiplier
+        : 0;
     final todayDateStr = StreakCalculator.formatDate(localCompletedAt);
 
     // Kiểm tra danh sách huy hiệu
@@ -101,6 +121,7 @@ class GamificationService {
     final updatedProfile = profile.copyWith(
       streakCount: newStreak,
       longestStreak: newLongest,
+      totalPoints: profile.totalPoints + pointsEarned,
       lastActiveDate: lastRecordedCompletion.toUtc().toIso8601String(),
       lastCompletedDate: todayDateStr,
       unlockedBadgeIds: currentUnlocked.toList(),
@@ -109,6 +130,8 @@ class GamificationService {
     return GamificationResult(
       updatedProfile: updatedProfile,
       newlyUnlockedBadges: newlyUnlocked,
+      pointsEarned: pointsEarned,
+      streakMultiplier: streakMultiplier,
     );
   }
 }
