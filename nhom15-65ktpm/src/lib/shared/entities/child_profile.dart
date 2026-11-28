@@ -6,6 +6,7 @@ class ChildProfile extends Equatable {
   final int age;
   final int streakCount;
   final int longestStreak;
+  final int totalPoints;
   final String lastActiveDate;
   final String lastCompletedDate;
   final List<String> unlockedBadgeIds;
@@ -20,6 +21,7 @@ class ChildProfile extends Equatable {
     required this.age,
     required this.streakCount,
     this.longestStreak = 0,
+    this.totalPoints = 0,
     required this.lastActiveDate,
     this.lastCompletedDate = '',
     required this.unlockedBadgeIds,
@@ -35,6 +37,7 @@ class ChildProfile extends Equatable {
     int? age,
     int? streakCount,
     int? longestStreak,
+    int? totalPoints,
     String? lastActiveDate,
     String? lastCompletedDate,
     List<String>? unlockedBadgeIds,
@@ -49,6 +52,7 @@ class ChildProfile extends Equatable {
       age: age ?? this.age,
       streakCount: streakCount ?? this.streakCount,
       longestStreak: longestStreak ?? this.longestStreak,
+      totalPoints: totalPoints ?? this.totalPoints,
       lastActiveDate: lastActiveDate ?? this.lastActiveDate,
       lastCompletedDate: lastCompletedDate ?? this.lastCompletedDate,
       unlockedBadgeIds: unlockedBadgeIds ?? this.unlockedBadgeIds,
@@ -66,6 +70,7 @@ class ChildProfile extends Equatable {
       'age': age,
       'streakCount': streakCount,
       'longestStreak': longestStreak,
+      'totalPoints': totalPoints,
       'lastActiveDate': lastActiveDate,
       'lastCompletedDate': lastCompletedDate,
       'unlockedBadgeIds': unlockedBadgeIds,
@@ -86,6 +91,7 @@ class ChildProfile extends Equatable {
       age: _nonNegativeInt(map['age'], 5),
       streakCount: streakCount,
       longestStreak: _nonNegativeInt(map['longestStreak'], streakCount),
+      totalPoints: _nonNegativeInt(map['totalPoints'], 0),
       lastActiveDate: _stringValue(map['lastActiveDate'], ''),
       lastCompletedDate: _stringValue(map['lastCompletedDate'], ''),
       unlockedBadgeIds:
@@ -114,6 +120,7 @@ class ChildProfile extends Equatable {
         age,
         streakCount,
         longestStreak,
+        totalPoints,
         lastActiveDate,
         lastCompletedDate,
         unlockedBadgeIds,
