@@ -5,6 +5,11 @@ import 'package:flutter_tts/flutter_tts.dart';
 import 'package:just_audio/just_audio.dart';
 
 class AudioService {
+  static const String successSoundAssetPath =
+      'assets/audio/sfx/applause.wav';
+  static const String incorrectSoundAssetPath =
+      'assets/audio/sfx/gentle_wah.wav';
+
   final FlutterTts _flutterTts = FlutterTts();
   final AudioPlayer _successPlayer = AudioPlayer();
   final AudioPlayer _incorrectPlayer = AudioPlayer();
@@ -153,11 +158,11 @@ class AudioService {
     await Future.wait<void>([
       _loadSoundAsset(
         _successPlayer,
-        'assets/audio/sfx/mixkit-end-of-show-clapping-crowd-477.wav',
+        successSoundAssetPath,
       ),
       _loadSoundAsset(
         _incorrectPlayer,
-        'assets/audio/sfx/mixkit-cartoon-failure-piano-473.wav',
+        incorrectSoundAssetPath,
       ),
     ]);
   }

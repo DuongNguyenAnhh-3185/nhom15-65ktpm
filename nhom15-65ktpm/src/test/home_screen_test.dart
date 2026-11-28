@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:soroban_kids_app/core/constants/app_colors.dart';
 import 'package:soroban_kids_app/core/services/audio_service.dart';
+import 'package:soroban_kids_app/core/services/auth_service.dart';
 import 'package:soroban_kids_app/core/services/storage_service.dart';
 import 'package:soroban_kids_app/features/1_abacus_engine/presentation/widgets/finger_math_board_widget.dart';
 import 'package:soroban_kids_app/features/2_gamification_parent/presentation/widgets/parental_gate_dialog.dart';
@@ -40,6 +41,11 @@ class _TestAudioService implements AudioService {
 
   @override
   Future<void> speak(String text) async {}
+}
+
+class _TestAuthService implements AuthService {
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
 int _gateAnswer(WidgetTester tester) {
@@ -93,6 +99,7 @@ void main() {
     });
     await sl.reset();
     sl.registerSingleton<AudioService>(_TestAudioService());
+    sl.registerSingleton<AuthService>(_TestAuthService());
     sl.registerSingleton<StorageService>(StorageService());
   });
 
