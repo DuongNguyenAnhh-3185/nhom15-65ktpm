@@ -7,6 +7,7 @@ import 'package:soroban_kids_app/features/3_lessons_flash_anzan/presentation/scr
 
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/services/audio_service.dart';
+import '../../../../core/services/auth_service.dart';
 import '../../../../core/services/gamification_service.dart';
 import '../../../../core/services/reminder_service.dart';
 import '../../../../core/services/storage_service.dart';
@@ -32,6 +33,7 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final AudioService _audioService = sl<AudioService>();
+  final AuthService _authService = sl<AuthService>();
   final StorageService _storageService = sl<StorageService>();
   ChildProfile? _profile;
   bool _showReminderBanner = false;
@@ -104,6 +106,29 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          Tooltip(
+                            message: _storageService.lastCloudSyncError == null
+                                ? 'Dữ liệu đã đồng bộ với Firebase'
+                                : 'Chưa đồng bộ được dữ liệu. Kiểm tra cấu hình Firebase.',
+                            child: Icon(
+                              _storageService.lastCloudSyncError == null
+                                  ? Icons.cloud_done_rounded
+                                  : Icons.cloud_off_rounded,
+                              color: _storageService.lastCloudSyncError == null
+                                  ? AppColors.success
+                                  : AppColors.error,
+                            ),
+                          ),
+                          IconButton(
+                            tooltip: 'Đăng xuất tài khoản',
+                            onPressed: _confirmSignOut,
+                            icon: const Icon(Icons.logout_rounded),
+                          ),
+                        ],
+                      ),
                       Center(
                         child: SizedBox(
                           width: mascotWidth,
@@ -511,6 +536,27 @@ class _HomeScreenState extends State<HomeScreen> {
         ).then((_) => _loadProfile());
       },
     );
+  }
+
+  Future<void> _confirmSignOut() async {
+    final shouldSignOut = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Đăng xuất?'),
+        content: const Text('Tiến độ của bé đã được lưu theo tài khoản.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Ở lại'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Đăng xuất'),
+          ),
+        ],
+      ),
+    );
+    if (shouldSignOut == true) await _authService.signOut();
   }
 
   void _openLesson(int level) {
