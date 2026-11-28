@@ -11,7 +11,7 @@ class SorobanQuestion extends Equatable {
   final ArithmeticOperation? operation;
   final int expectedAnswer;
   final QuestionType type;
-  final int flashSpeedMs; // Dành cho Flash Anzan (500 - 1500 ms)
+  final int flashSpeedMs; // Dành cho Flash Anzan (1000 - 2500 ms)
 
   const SorobanQuestion({
     required this.id,
@@ -20,7 +20,7 @@ class SorobanQuestion extends Equatable {
     this.operation,
     required this.expectedAnswer,
     required this.type,
-    this.flashSpeedMs = 1200,
+    this.flashSpeedMs = 2500,
   });
 
   String get formulaExpression {
@@ -53,9 +53,8 @@ class SorobanQuestion extends Equatable {
       if (i == 0) {
         buffer.write('$val');
       } else if (i == 1 && operation != null) {
-        final operator = operation == ArithmeticOperation.addition
-            ? 'cộng'
-            : 'trừ';
+        final operator =
+            operation == ArithmeticOperation.addition ? 'cộng' : 'trừ';
         buffer.write(' $operator ${val.abs()}');
       } else {
         if (val >= 0) {

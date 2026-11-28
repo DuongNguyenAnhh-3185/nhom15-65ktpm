@@ -32,6 +32,7 @@ class _LessonPlayScreenState extends State<LessonPlayScreen>
   final AudioService _audioService = sl<AudioService>();
   final QuestionGenerator _generator = QuestionGenerator();
   late final FingerMathController _fingerController;
+  late final AnimationController _confettiController;
   late final AdaptiveLearningEngine _adaptiveEngine;
   late SorobanQuestion _question;
   DateTime _questionStartTime = DateTime.now();
@@ -53,6 +54,10 @@ class _LessonPlayScreenState extends State<LessonPlayScreen>
         currentDifficulty: widget.level,
         isFingerGuideEnabled: false,
       ),
+    );
+    _confettiController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1700),
     );
     _fingerController = FingerMathController(showLeftHand: _isLevel2);
     _loadQuestion(isFirstQuestion: true);
@@ -429,89 +434,10 @@ class _LessonPlayScreenState extends State<LessonPlayScreen>
                                 controller: _fingerController,
                                 height: handBoardHeight,
                                 showLiveValue: true,
+                                isGuideEnabled:
+                                    _showHint || _adaptiveEngine.state.isFingerGuideEnabled,
                               ),
                             ),
-                          ],
-                        ),
-                      ),
-                      const Padding(
-                        padding:
-                            EdgeInsets.symmetric(horizontal: 20, vertical: 6),
-                        child: Text(
-                          'Bé hãy gảy ngón tay hoặc bấm Micro để nói đáp án nhé!',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            color: AppColors.textDark,
-                            fontSize: 17,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                      ),
-                      Container(
-                        margin: const EdgeInsets.symmetric(
-                            horizontal: 20, vertical: 6),
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 28, vertical: 12),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(24),
-                          border:
-                              Border.all(color: AppColors.secondary, width: 2),
-                        ),
-                        child: Text(
-                          '${_question.formulaExpression} = ?',
-                          style: const TextStyle(
-                            color: AppColors.primary,
-                            fontSize: 36,
-                            fontWeight: FontWeight.w900,
-                          ),
-                        ),
-                      ),
-                      if (_isLevel2)
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 20),
-                          child: _buildHintSection(secondOperand),
-                        ),
-                      if (!_isLevel2)
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 24),
-                          child: Text(
-                            isAddition
-                                ? 'Bắt đầu từ $firstOperand rồi xòe thêm $secondOperand nhé.'
-                                : 'Bắt đầu từ $firstOperand rồi gập bớt $secondOperand nhé.',
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(color: AppColors.textLight),
-                          ),
-                        ),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 12),
-                        child: FingerMathBoardWidget(
-                          controller: _fingerController,
-                          height: handBoardHeight,
-                          showLiveValue: true,
-                          isGuideEnabled: _showHint || _adaptiveEngine.state.isFingerGuideEnabled,
-                        ),
-                      ),
-
-                      // Nút Micro AI nhận diện giọng nói tiếng Việt (Mục 7.7)
-                      Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 6),
-                        child: VoiceAnswerMicButton(
-                          onAnswerDetected: (number, raw) {
-                            _fingerController.setValue(number);
-                            _checkAnswer(voiceAnswer: number, rawSpeech: raw);
-                          },
-                          onHintRequested: (speech) {
-                            setState(() => _showHint = true);
-                            _audioService.speak(
-                              'Đừng lo bé nhé! ${_question.formulaExpression}. Bé hãy quan sát ngón tay nè!',
-                            );
-                          },
-                          onStatusChanged: (status) {
-                            // Cập nhật trạng thái nếu cần
-                          },
-                        ),
-                      ),
 
                             // Nút Micro AI nhận diện giọng nói tiếng Việt (Mục 7.7)
                             Padding(
