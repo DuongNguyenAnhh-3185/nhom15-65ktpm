@@ -27,10 +27,13 @@ class _GateHostState extends State<_GateHost> {
         child: _passed
             ? const Text('Parent Dashboard')
             : ElevatedButton(
-                onPressed: () => ParentalGateDialog.show(
-                  context,
-                  onPass: () => setState(() => _passed = true),
-                ),
+                onPressed: () async {
+                  final authenticated =
+                      await ParentalGateDialog.authenticate(context);
+                  if (authenticated && mounted) {
+                    setState(() => _passed = true);
+                  }
+                },
                 child: const Text('Open gate'),
               ),
       ),

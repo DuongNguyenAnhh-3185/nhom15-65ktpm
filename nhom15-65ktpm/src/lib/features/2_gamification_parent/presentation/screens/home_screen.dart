@@ -21,7 +21,6 @@ import '../../../../shared/widgets/kid_status_banner.dart';
 import '../../../../shared/widgets/kid_status_icon.dart';
 import '../../../../shared/widgets/mascot_bubble.dart';
 import '../../../../shared/widgets/panda_mascot.dart';
-import '../widgets/parental_gate_dialog.dart';
 import 'parent_dashboard_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -525,17 +524,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _openParentDashboard() {
-    ParentalGateDialog.show(
-      context,
-      onPass: () {
-        Navigator.push<void>(
-          context,
-          MaterialPageRoute(
-            builder: (_) => const ParentDashboardScreen(),
-          ),
-        ).then((_) => _loadProfile());
-      },
-    );
+    ParentDashboardRoute.open(context).then((_) => _loadProfile());
   }
 
   Future<void> _confirmSignOut() async {
