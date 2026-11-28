@@ -46,7 +46,7 @@ class _LessonPlayScreenState extends State<LessonPlayScreen>
   bool _showHint = false;
   bool _hasCheckedAnswer = false;
   bool _answeredCorrectly = false;
-
+  bool _hasRecordedAttemptForQuestion = false;
   int _questionNumber = 1;
   int _pointsEarned = 0;
   int _streakMultiplier = 1;
@@ -95,6 +95,7 @@ class _LessonPlayScreenState extends State<LessonPlayScreen>
 
     _hasCheckedAnswer = false;
     _answeredCorrectly = false;
+    _hasRecordedAttemptForQuestion = false;
     _pointsEarned = 0;
     _streakMultiplier = 1;
     _adaptiveFeedbackMessage = '';
@@ -174,24 +175,23 @@ class _LessonPlayScreenState extends State<LessonPlayScreen>
       );
     }
 
-    // 3. Gia sư thích ứng đánh giá và hỗ trợ theo cửa sổ trượt
-    final attempt = AttemptResult(
-      isCorrect: isCorrect,
-      responseTimeMs: responseTime,
-      mode: PracticeMode.fingerMath,
-      difficultyLevel: widget.level,
-    );
+    // 3. Gia sư thích ứng đánh giá và hỗ trợ theo cửa sổ trượt (chỉ ghi nhận 1 lần mỗi câu hỏi)
+    if (!_hasRecordedAttemptForQuestion) {
+      _hasRecordedAttemptForQuestion = true;
+      final attempt = AttemptResult(
+        isCorrect: isCorrect,
+        responseTimeMs: responseTime,
+        mode: PracticeMode.fingerMath,
+        difficultyLevel: widget.level,
+      );
+      final decision = _adaptiveEngine.processAttempt(attempt);
 
-    final decision = _adaptiveEngine.processAttempt(attempt);
-
-    if (mounted) {
-      setState(() {
-        _adaptiveFeedbackMessage = decision.message;
-
-        if (decision.fingerGuideEnabled) {
-          _showHint = true;
-        }
-      });
+      if (mounted) {
+        setState(() {
+          _adaptiveFeedbackMessage = decision.message;
+          _showHint = decision.fingerGuideEnabled;
+        });
+      }
     }
   }
 
@@ -221,7 +221,18 @@ class _LessonPlayScreenState extends State<LessonPlayScreen>
 
   void _skipQuestion() {
     unawaited(_audioService.stopFeedback());
-
+    if (!_hasRecordedAttemptForQuestion) {
+      _hasRecordedAttemptForQuestion = true;
+      final responseTime =
+          DateTime.now().difference(_questionStartTime).inMilliseconds;
+      final attempt = AttemptResult(
+        isCorrect: false,
+        responseTimeMs: responseTime,
+        mode: PracticeMode.fingerMath,
+        difficultyLevel: widget.level,
+      );
+      _adaptiveEngine.processAttempt(attempt);
+    }
     final existing = _sessionResults.where(
       (result) => result.number == _questionNumber,
     );
@@ -520,7 +531,7 @@ class _LessonPlayScreenState extends State<LessonPlayScreen>
                                 controller: _fingerController,
                                 height: handBoardHeight,
                                 showLiveValue: true,
-                                isGuideEnabled: _showHint ||
+                                isGuideEnabled:
                                     _adaptiveEngine.state.isFingerGuideEnabled,
                               ),
                             ),
