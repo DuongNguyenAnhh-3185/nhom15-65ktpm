@@ -98,9 +98,9 @@ Thay vì sử dụng các hình ảnh cố định thiếu linh hoạt, nhóm k�
 - `speech_to_text`: Ghi nhận âm thanh từ microphone thiết bị theo chuẩn âm vực tiếng nói trẻ nhỏ.
 - `HapticFeedback`: Tạo rung xúc giác nhẹ khi bung ngón tay hoặc chọn số, tạo cảm giác chạm vật lý sống động.
 
-### 2.4. Trực quan hóa dữ liệu & Lưu trữ cục bộ
-- `fl_chart`: Vẽ biểu đồ cột tiến độ hàng tuần hiển thị cho phụ huynh.
-- `shared_preferences`: Lưu trữ hồ sơ của bé, chuỗi ngày học Streak, lịch sử làm bài tập và trạng thái huy hiệu ngoại tuyến (offline-first).
+### 2.4. Lưu trữ đám mây (Cloud Firebase) & Trực quan hóa dữ liệu
+- **Cloud Firebase (`firebase_core`, Cloud Firestore):** Hệ thống lưu trữ và đồng bộ dữ liệu trực tuyến trên nền tảng đám mây Google Firebase (Project: `nhom15-ccf0d`), đảm bảo đồng bộ hồ sơ của bé, chuỗi ngày học Streak, lịch sử làm bài tập và trạng thái huy hiệu xuyên suốt đa nền tảng (Web, Android, Windows).
+- `fl_chart`: Thư viện biểu đồ phục vụ việc vẽ biểu đồ cột thống kê tiến bộ học tập tại Parent Dashboard.
 
 ---
 
