@@ -64,8 +64,9 @@ class _AuthScreenState extends State<AuthScreen> {
   String? _validateConfirmation(String? value) {
     if (!_isRegistering) return null;
     if (value == null || value.isEmpty) return 'Vui lòng nhập lại mật khẩu.';
-    if (value != _passwordController.text)
+    if (value != _passwordController.text) {
       return 'Mật khẩu nhập lại chưa khớp.';
+    }
     return null;
   }
 

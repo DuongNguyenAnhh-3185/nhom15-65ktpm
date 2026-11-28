@@ -18,8 +18,10 @@ void main() {
         expect(question.operands, hasLength(2));
         expect(question.operands[0], inInclusiveRange(0, 9));
         expect(question.operands[1], inInclusiveRange(0, 9));
-        expect(question.operands[0] + question.operands[1], lessThanOrEqualTo(9));
-        expect(question.expectedAnswer, question.operands[0] + question.operands[1]);
+        expect(
+            question.operands[0] + question.operands[1], lessThanOrEqualTo(9));
+        expect(question.expectedAnswer,
+            question.operands[0] + question.operands[1]);
         expect(question.expectedAnswer, inInclusiveRange(0, 9));
         expect(question.level, QuestionLevel.basic.value);
         expect(question.operation, ArithmeticOperation.addition);
@@ -28,7 +30,8 @@ void main() {
   });
 
   group('QuestionGenerator Level 3 Flash Anzan', () {
-    test('generates signed terms whose every running total stays from 0 to 99', () {
+    test('generates signed terms whose every running total stays from 0 to 99',
+        () {
       final generator = QuestionGenerator(random: Random(31));
 
       for (var i = 0; i < 500; i++) {
@@ -53,18 +56,18 @@ void main() {
       }
     });
 
-    test('rejects a speed outside the documented 500-1500ms range', () {
+    test('rejects a speed outside the documented 1000-2500ms range', () {
       expect(
         () => QuestionGenerator(random: Random(32)).generateForLevel(
           QuestionLevel.flashAnzan,
-          flashSpeedMs: 499,
+          flashSpeedMs: 999,
         ),
         throwsArgumentError,
       );
       expect(
         () => QuestionGenerator(random: Random(33)).generateForLevel(
           QuestionLevel.flashAnzan,
-          flashSpeedMs: 1501,
+          flashSpeedMs: 2501,
         ),
         throwsArgumentError,
       );
@@ -72,7 +75,8 @@ void main() {
   });
 
   group('QuestionGenerator Level 1 subtraction', () {
-    test('keeps operands and result in range and calculates the difference', () {
+    test('keeps operands and result in range and calculates the difference',
+        () {
       final generator = QuestionGenerator(random: Random(2));
 
       for (var i = 0; i < 200; i++) {
@@ -84,8 +88,10 @@ void main() {
         expect(question.operands, hasLength(2));
         expect(question.operands[0], inInclusiveRange(0, 9));
         expect(question.operands[1], inInclusiveRange(0, 9));
-        expect(question.operands[0], greaterThanOrEqualTo(question.operands[1]));
-        expect(question.expectedAnswer, question.operands[0] - question.operands[1]);
+        expect(
+            question.operands[0], greaterThanOrEqualTo(question.operands[1]));
+        expect(question.expectedAnswer,
+            question.operands[0] - question.operands[1]);
         expect(question.expectedAnswer, inInclusiveRange(0, 9));
         expect(question.operation, ArithmeticOperation.subtraction);
       }
@@ -102,13 +108,17 @@ void main() {
         expect(question.operation, isIn(ArithmeticOperation.values));
         expect(question.type, QuestionType.recognition);
         expect(question.operands, hasLength(2));
-        expect(question.operands.every((value) => value >= 0 && value <= 9), isTrue);
+        expect(question.operands.every((value) => value >= 0 && value <= 9),
+            isTrue);
         expect(question.expectedAnswer, inInclusiveRange(0, 9));
         if (question.operation == ArithmeticOperation.addition) {
-          expect(question.expectedAnswer, question.operands[0] + question.operands[1]);
+          expect(question.expectedAnswer,
+              question.operands[0] + question.operands[1]);
         } else {
-          expect(question.expectedAnswer, question.operands[0] - question.operands[1]);
-          expect(question.operands[0], greaterThanOrEqualTo(question.operands[1]));
+          expect(question.expectedAnswer,
+              question.operands[0] - question.operands[1]);
+          expect(
+              question.operands[0], greaterThanOrEqualTo(question.operands[1]));
         }
       }
     });
@@ -116,8 +126,8 @@ void main() {
 
   group('QuestionGenerator Level 1 boundary cases', () {
     test('generates 0 + 0 = 0', () {
-      final question = QuestionGenerator(random: _SequenceRandom([0, 0]))
-          .generateForLevel(
+      final question =
+          QuestionGenerator(random: _SequenceRandom([0, 0])).generateForLevel(
         QuestionLevel.basic,
         operation: ArithmeticOperation.addition,
       );
@@ -129,8 +139,8 @@ void main() {
     });
 
     test('generates 0 + 9 = 9', () {
-      final question = QuestionGenerator(random: _SequenceRandom([0, 9]))
-          .generateForLevel(
+      final question =
+          QuestionGenerator(random: _SequenceRandom([0, 9])).generateForLevel(
         QuestionLevel.basic,
         operation: ArithmeticOperation.addition,
       );
@@ -140,8 +150,8 @@ void main() {
     });
 
     test('generates 9 - 0 = 9', () {
-      final question = QuestionGenerator(random: _SequenceRandom([9, 0]))
-          .generateForLevel(
+      final question =
+          QuestionGenerator(random: _SequenceRandom([9, 0])).generateForLevel(
         QuestionLevel.basic,
         operation: ArithmeticOperation.subtraction,
       );
@@ -152,8 +162,8 @@ void main() {
     });
 
     test('generates 9 - 9 = 0', () {
-      final question = QuestionGenerator(random: _SequenceRandom([9, 9]))
-          .generateForLevel(
+      final question =
+          QuestionGenerator(random: _SequenceRandom([9, 9])).generateForLevel(
         QuestionLevel.basic,
         operation: ArithmeticOperation.subtraction,
       );

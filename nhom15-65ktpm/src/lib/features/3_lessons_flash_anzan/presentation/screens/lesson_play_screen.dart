@@ -36,7 +36,6 @@ class _LessonPlayScreenState extends State<LessonPlayScreen>
   late final AnimationController _confettiController;
   late final FingerMathController _fingerController;
   late final AdaptiveLearningEngine _adaptiveEngine;
-  late final AnimationController _confettiController;
   late SorobanQuestion _question;
 
   DateTime _questionStartTime = DateTime.now();
@@ -47,6 +46,7 @@ class _LessonPlayScreenState extends State<LessonPlayScreen>
   bool _hasCheckedAnswer = false;
   bool _answeredCorrectly = false;
   bool _hasRecordedAttemptForQuestion = false;
+  bool _isProcessingAnswer = false;
   int _questionNumber = 1;
   int _pointsEarned = 0;
   int _streakMultiplier = 1;
@@ -96,6 +96,7 @@ class _LessonPlayScreenState extends State<LessonPlayScreen>
     _hasCheckedAnswer = false;
     _answeredCorrectly = false;
     _hasRecordedAttemptForQuestion = false;
+    _isProcessingAnswer = false;
     _pointsEarned = 0;
     _streakMultiplier = 1;
     _adaptiveFeedbackMessage = '';
@@ -109,7 +110,11 @@ class _LessonPlayScreenState extends State<LessonPlayScreen>
     int? voiceAnswer,
     String rawSpeech = '',
   }) async {
-    if (_hasCheckedAnswer && _answeredCorrectly) return;
+    // 1. Chống kích hoạt trùng lặp (Debounce / Lock state)
+    if (_isProcessingAnswer || (_hasCheckedAnswer && _answeredCorrectly)) return;
+    _isProcessingAnswer = true;
+
+    try {
 
     final ans = voiceAnswer ?? _fingerController.totalValue;
     final isCorrect = ans == _question.expectedAnswer;
@@ -193,7 +198,12 @@ class _LessonPlayScreenState extends State<LessonPlayScreen>
         });
       }
     }
+  } finally {
+    if (!_answeredCorrectly) {
+      _isProcessingAnswer = false;
+    }
   }
+}
 
   void _recordAnswer(int answer, bool isCorrect) {
     final existing = _sessionResults.where(
@@ -363,6 +373,8 @@ class _LessonPlayScreenState extends State<LessonPlayScreen>
     setState(() {
       _fingerController.setValue(_question.operands.first);
       _hasCheckedAnswer = false;
+      _answeredCorrectly = false;
+      _isProcessingAnswer = false;
       _questionStartTime = DateTime.now();
     });
   }

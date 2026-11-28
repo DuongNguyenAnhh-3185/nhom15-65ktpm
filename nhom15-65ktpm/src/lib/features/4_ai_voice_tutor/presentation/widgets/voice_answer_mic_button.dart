@@ -127,6 +127,7 @@ class _VoiceAnswerMicButtonState extends State<VoiceAnswerMicButton>
         ),
         onResult: (result) {
           if (!mounted) return;
+          if (_state != VoiceMicState.listening) return;
           _recognizedWords = result.recognizedWords;
           widget.onStatusChanged?.call('Bé vừa nói: "$_recognizedWords"');
 
@@ -160,12 +161,8 @@ class _VoiceAnswerMicButtonState extends State<VoiceAnswerMicButton>
             _setState(VoiceMicState.processing);
             widget.onStatusChanged?.call('Đã nhận diện: ${extraction.value}');
 
-            Future.delayed(const Duration(milliseconds: 300), () {
-              if (mounted) {
-                _setState(VoiceMicState.idle);
-                widget.onAnswerDetected(extraction.value!, _recognizedWords);
-              }
-            });
+            widget.onAnswerDetected(extraction.value!, _recognizedWords);
+            _setState(VoiceMicState.idle);
           }
         },
       );
