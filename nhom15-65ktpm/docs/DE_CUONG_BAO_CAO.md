@@ -37,8 +37,8 @@
 - 2.2. Xử lý âm thanh và công nghệ nhận dạng giọng nói:
   - Thư viện `speech_to_text` tiếng Việt và `flutter_tts` tổng hợp giọng nói tự nhiên cho trẻ em.
   - Xử lý ngôn ngữ tự nhiên (NLP) mức từ vựng bóc tách số và lọc các từ đệm dạ thưa của trẻ.
-- 2.3. Trực quan hóa dữ liệu tiến độ với thư viện `fl_chart`.
-- 2.4. Lưu trữ dữ liệu cục bộ tốc độ cao với `shared_preferences`.
+- 2.3. Trực quan hóa dữ liệu tiến độ với thư viện `fl_chart` tại Parent Dashboard.
+- 2.4. Lưu trữ và đồng bộ dữ liệu đám mây với **Cloud Firebase** (`firebase_core`, Cloud Firestore) cho hồ sơ bé, lịch sử bài tập và tiến độ đa nền tảng.
 
 ---
 
