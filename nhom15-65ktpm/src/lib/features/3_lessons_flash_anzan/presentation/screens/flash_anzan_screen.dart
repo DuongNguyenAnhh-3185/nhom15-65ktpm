@@ -66,6 +66,8 @@ class _FlashAnzanScreenState extends State<FlashAnzanScreen> {
   int _expectedAnswer = 0;
   int? _userAnswer;
   bool _isCorrect = false;
+  int _pointsEarned = 0;
+  int _streakMultiplier = 1;
   DateTime _questionStartTime = DateTime.now();
   Timer? _flashTimer;
   int _sessionToken = 0;
@@ -124,6 +126,8 @@ class _FlashAnzanScreenState extends State<FlashAnzanScreen> {
       _currentIndex = 0;
       _userAnswer = null;
       _isCorrect = false;
+      _pointsEarned = 0;
+      _streakMultiplier = 1;
       _countdownValue = 3;
       _state = FlashState.countdown;
       _adaptiveNote = '';
@@ -304,6 +308,12 @@ class _FlashAnzanScreenState extends State<FlashAnzanScreen> {
         flashSpeedMs: flashSpeed,
       ),
     );
+    if (mounted) {
+      setState(() {
+        _pointsEarned = gamificationResult.pointsEarned;
+        _streakMultiplier = gamificationResult.streakMultiplier;
+      });
+    }
 
     if (!mounted) return;
     setState(() {
@@ -602,6 +612,17 @@ class _FlashAnzanScreenState extends State<FlashAnzanScreen> {
                               style: const TextStyle(
                                   fontSize: 15, fontWeight: FontWeight.bold),
                             ),
+                            if (_isCorrect) ...[
+                              const SizedBox(height: 4),
+                              Text(
+                                '+$_pointsEarned điểm (x$_streakMultiplier theo chuỗi học)',
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w800,
+                                  color: AppColors.success,
+                                ),
+                              ),
+                            ],
                             if (_adaptiveNote.isNotEmpty) ...[
                               const SizedBox(height: 8),
                               Text(

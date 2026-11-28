@@ -275,6 +275,10 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
                       label: 'Chuỗi: ${profile?.streakCount ?? 0} ngày',
                     ),
                     _buildProfileTag(
+                      icon: Icons.stars_rounded,
+                      label: 'Điểm: ${profile?.totalPoints ?? 0}',
+                    ),
+                    _buildProfileTag(
                       icon: Icons.emoji_events_outlined,
                       label:
                           '${profile?.unlockedBadgeIds.length ?? 0} huy hiệu',
