@@ -36,7 +36,7 @@ class _LessonPlayScreenState extends State<LessonPlayScreen>
   late final AnimationController _confettiController;
   late final FingerMathController _fingerController;
   late final AdaptiveLearningEngine _adaptiveEngine;
-
+  late final AnimationController _confettiController;
   late SorobanQuestion _question;
 
   DateTime _questionStartTime = DateTime.now();
@@ -58,12 +58,10 @@ class _LessonPlayScreenState extends State<LessonPlayScreen>
   @override
   void initState() {
     super.initState();
-
     _confettiController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1700),
+      duration: const Duration(milliseconds: 900),
     );
-
     _adaptiveEngine = AdaptiveLearningEngine(
       initialState: AdaptiveState(
         currentDifficulty: widget.level,
@@ -522,11 +520,10 @@ class _LessonPlayScreenState extends State<LessonPlayScreen>
                                 controller: _fingerController,
                                 height: handBoardHeight,
                                 showLiveValue: true,
-                                isGuideEnabled:
-                                    _showHint || _adaptiveEngine.state.isFingerGuideEnabled,
+                                isGuideEnabled: _showHint ||
+                                    _adaptiveEngine.state.isFingerGuideEnabled,
                               ),
                             ),
-
                             // Nút Micro AI nhận diện giọng nói tiếng Việt (Mục 7.7)
                             Padding(
                               padding: const EdgeInsets.symmetric(

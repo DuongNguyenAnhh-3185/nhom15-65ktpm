@@ -68,6 +68,24 @@ void main() {
           timestamp: DateTime.now().toIso8601String(),
           difficultyLevel: 2,
         ),
+        AttemptLog(
+          questionId: 'q_4',
+          userAnswer: 1,
+          isCorrect: false,
+          responseTimeMs: 6800,
+          answeredVia: 'abacus_touch',
+          timestamp: DateTime.now().toIso8601String(),
+          difficultyLevel: 2,
+        ),
+        AttemptLog(
+          questionId: 'q_5',
+          userAnswer: 0,
+          isCorrect: false,
+          responseTimeMs: 6600,
+          answeredVia: 'abacus_touch',
+          timestamp: DateTime.now().toIso8601String(),
+          difficultyLevel: 2,
+        ),
       ];
 
       final decision = AdaptiveLearningEngine.evaluatePerformance(

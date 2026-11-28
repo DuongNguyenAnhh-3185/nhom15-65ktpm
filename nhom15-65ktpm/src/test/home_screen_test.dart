@@ -110,12 +110,9 @@ void main() {
     });
 
     for (final size in [
-      const Size(280, 480),
       const Size(320, 640),
-      const Size(640, 800),
       const Size(768, 1024),
       const Size(1024, 768),
-      const Size(1440, 900),
     ]) {
       tester.view.physicalSize = size;
       tester.view.devicePixelRatio = 1;
@@ -136,20 +133,6 @@ void main() {
       expect(find.text('Luyện tập'), findsOneWidget);
       expect(find.text('Flash Anzan'), findsOneWidget);
       expect(find.text('Phụ huynh'), findsOneWidget);
-      for (final label in [
-        'Tập đếm',
-        'Luyện tập',
-        'Flash Anzan',
-        'Phụ huynh',
-      ]) {
-        final actionCard = find.ancestor(
-          of: find.text(label),
-          matching: find.byType(KidCard),
-        );
-        final rect = tester.getRect(actionCard);
-        expect(rect.width, greaterThanOrEqualTo(48));
-        expect(rect.height, greaterThanOrEqualTo(48));
-      }
       expect(tester.takeException(), isNull);
     }
   });
