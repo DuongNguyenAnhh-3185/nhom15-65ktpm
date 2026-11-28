@@ -48,6 +48,8 @@ class _LessonPlayScreenState extends State<LessonPlayScreen>
   bool _answeredCorrectly = false;
 
   int _questionNumber = 1;
+  int _pointsEarned = 0;
+  int _streakMultiplier = 1;
 
   String _adaptiveFeedbackMessage = '';
 
@@ -95,6 +97,8 @@ class _LessonPlayScreenState extends State<LessonPlayScreen>
 
     _hasCheckedAnswer = false;
     _answeredCorrectly = false;
+    _pointsEarned = 0;
+    _streakMultiplier = 1;
     _adaptiveFeedbackMessage = '';
 
     _questionStartTime = DateTime.now();
@@ -157,6 +161,13 @@ class _LessonPlayScreenState extends State<LessonPlayScreen>
     await _storageService.saveChildProfile(
       gamificationResult.updatedProfile,
     );
+
+    if (mounted) {
+      setState(() {
+        _pointsEarned = gamificationResult.pointsEarned;
+        _streakMultiplier = gamificationResult.streakMultiplier;
+      });
+    }
 
     if (gamificationResult.newlyUnlockedBadges.isNotEmpty && mounted) {
       BadgeUnlockDialog.show(
@@ -806,7 +817,8 @@ class _LessonPlayScreenState extends State<LessonPlayScreen>
         : 'CHƯA ĐÚNG, BÉ THỬ LẠI NHÉ!';
 
     final message = _answeredCorrectly
-        ? 'Bé đã tìm được đáp án ${_question.expectedAnswer}. Giỏi quá!'
+        ? 'Bé đã tìm được đáp án ${_question.expectedAnswer}. Giỏi quá! '
+            '+$_pointsEarned điểm (x$_streakMultiplier theo chuỗi học).'
         : 'Bàn tay đang chỉ số ${_fingerController.totalValue}. '
             '${isAddition ? 'Bắt đầu từ $firstOperand rồi xòe thêm $secondOperand ngón.' : 'Bắt đầu từ $firstOperand rồi gập bớt $secondOperand ngón.'}';
 

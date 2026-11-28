@@ -240,6 +240,20 @@ class _HomeScreenState extends State<HomeScreen> {
             type: KidDecorationType.star,
             size: 32,
           ),
+          const SizedBox(width: 8),
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.stars_rounded, color: AppColors.accentYellow),
+              Text(
+                '${_profile?.totalPoints ?? 0}',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
+              ),
+              const Text('điểm'),
+            ],
+          ),
         ],
       ),
     );
