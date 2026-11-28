@@ -11,13 +11,15 @@ class AuthService {
   User? get currentUser => _firebaseAuth.currentUser;
 
   Future<void> register({
+    required String parentName,
     required String email,
     required String password,
   }) async {
-    await _firebaseAuth.createUserWithEmailAndPassword(
+    final credential = await _firebaseAuth.createUserWithEmailAndPassword(
       email: email.trim().toLowerCase(),
       password: password,
     );
+    await credential.user?.updateDisplayName(parentName.trim());
   }
 
   Future<void> signIn({
