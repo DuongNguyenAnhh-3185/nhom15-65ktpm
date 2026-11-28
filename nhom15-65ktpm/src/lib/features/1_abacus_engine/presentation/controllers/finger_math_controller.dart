@@ -57,17 +57,11 @@ class FingerMathController extends ChangeNotifier {
   void setExtendedFingers(HandType handType, int count) {
     final clamped = count.clamp(0, 4);
     if (handType == HandType.rightHand) {
-      if (_rightHand.extendedFingersCount == clamped) {
-        _rightHand = _rightHand.copyWith(extendedFingersCount: 0);
-      } else {
-        _rightHand = _rightHand.copyWith(extendedFingersCount: clamped);
-      }
+      if (_rightHand.extendedFingersCount == clamped) return;
+      _rightHand = _rightHand.copyWith(extendedFingersCount: clamped);
     } else {
-      if (_leftHand.extendedFingersCount == clamped) {
-        _leftHand = _leftHand.copyWith(extendedFingersCount: 0);
-      } else {
-        _leftHand = _leftHand.copyWith(extendedFingersCount: clamped);
-      }
+      if (_leftHand.extendedFingersCount == clamped) return;
+      _leftHand = _leftHand.copyWith(extendedFingersCount: clamped);
     }
     notifyListeners();
     onHandChanged?.call();
