@@ -11,15 +11,14 @@ class ParentalGateDialog extends StatefulWidget {
 
   static final _questionGenerator = GenerateParentalGateQuestion();
 
-  static void show(BuildContext context, {required VoidCallback onPass}) {
-    showDialog<bool>(
+  static Future<bool> authenticate(BuildContext context) async {
+    final passed = await showDialog<bool>(
       context: context,
       barrierDismissible: false,
       useRootNavigator: true,
       builder: (context) => const ParentalGateDialog(),
-    ).then((passed) {
-      if (passed == true) onPass();
-    });
+    );
+    return passed == true;
   }
 
   @override
