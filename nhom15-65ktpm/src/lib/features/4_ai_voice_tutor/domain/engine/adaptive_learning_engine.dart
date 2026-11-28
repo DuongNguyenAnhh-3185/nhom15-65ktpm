@@ -249,24 +249,26 @@ class AdaptiveLearningEngine {
 
   /// Xử lý 1 lượt làm bài và thực hiện thích ứng khi đủ cửa sổ trượt
   AdaptiveDecision processAttempt(AttemptResult attempt) {
-    // 1. Thêm bản ghi mới vào cửa sổ trượt
+    // 1. Thêm bản ghi mới vào cửa sổ trượt (tối đa 5 câu gần nhất)
     final updatedWindow = List<AttemptResult>.from(_state.slidingWindow)
       ..add(attempt);
 
-    // Giữ kích thước tối đa windowSize (cửa sổ trượt)
-    if (updatedWindow.length > windowSize) {
+    // Nếu length > windowSize (5), xóa phần tử cũ nhất (shift() / removeAt(0))
+    while (updatedWindow.length > windowSize) {
       updatedWindow.removeAt(0);
     }
 
     final totalProcessed = _state.totalAttemptsProcessed + 1;
 
-    // 2. Nếu chưa tích lũy đủ 5 bài, duy trì thông số hiện tại
+    // 2. CHỈ đánh giá khi đã tích lũy đúng windowSize (5) câu gần nhất.
+    // Nếu chưa đủ 5 câu (length < 5): Giữ nguyên cấp độ và TUYỆT ĐỐI KHÔNG BẬT HƯỚNG DẪN!
     if (updatedWindow.length < windowSize) {
       _state = _state.copyWith(
         slidingWindow: updatedWindow,
         totalAttemptsProcessed: totalProcessed,
         lastAction: AdaptationAction.maintain,
         adaptationFeedbackMessage: '',
+        isFingerGuideEnabled: false, // Luôn tắt hướng dẫn khi chưa đủ 5 câu
       );
 
       return AdaptiveDecision(
@@ -274,25 +276,25 @@ class AdaptiveLearningEngine {
         adaptationAction: AdaptationAction.maintain,
         recommendedSpeedMs: _state.flashDurationMs,
         recommendedLevel: _state.currentDifficulty,
-        fingerGuideEnabled: _state.isFingerGuideEnabled,
+        fingerGuideEnabled: false, // Luôn là false khi chưa đủ 5 câu
         reason:
-            'Đang tích lũy dữ liệu cửa sổ trượt (${updatedWindow.length}/$windowSize bài).',
+            'Đang tích lũy dữ liệu cửa sổ trượt (${updatedWindow.length}/$windowSize câu).',
         message: 'Bé hãy tiếp tục làm bài nhé!',
         accuracy: _state.currentAccuracy,
         avgResponseTimeMs: _state.avgResponseTimeMs,
       );
     }
 
-    // 3. Đã đủ 5 bài -> Tính toán độ chính xác và thời gian phản hồi trung bình
+    // 3. Đã đủ đúng 5 câu gần nhất -> Tính toán tỷ lệ đúng và thời gian trung bình
     final correctCount = updatedWindow.where((a) => a.isCorrect).length;
-    final accuracy = correctCount / updatedWindow.length;
+    final accuracy = correctCount / windowSize; // correctCount / 5
     final totalTime = updatedWindow
         .map((a) => a.responseTimeMs)
         .reduce((a, b) => a + b);
-    final avgTime = totalTime ~/ updatedWindow.length;
+    final avgTime = totalTime ~/ windowSize;
 
-    // QUY TẮC 1: Thăng cấp (Level Up / Speed Up)
-    // accuracy >= 80% (tức đúng >= 4/5 câu) VÀ avgResponseTimeMs < 2500
+    // QUY TẮC 1: Điều kiện Tăng độ khó (Thăng cấp)
+    // accuracy >= 0.8 (tức đúng từ 4/5 câu trở lên) VÀ avgResponseTime < 2500 ms
     if (accuracy >= highAccuracyThreshold && avgTime < fastResponseThresholdMs) {
       final newLevel = min(_state.currentDifficulty + 1, maxLevel);
       final newSpeed =
@@ -310,14 +312,14 @@ class AdaptiveLearningEngine {
               : 'Bé tính siêu nhanh! Tự động tăng tốc độ chớp số lên ${newSpeed}ms! 🚀');
 
       final reason =
-          'Tỷ lệ đúng ${(accuracy * 100).toInt()}% >= 80% và thời gian phản hồi ${avgTime}ms < 2500ms. Thăng cấp thử thách mới.';
+          'Tỷ lệ đúng ${(accuracy * 100).toInt()}% >= 80% và thời gian phản hồi ${avgTime}ms < 2500ms. Thăng cấp thử thách mới và tắt hướng dẫn ngón tay.';
 
       final decision = AdaptiveDecision(
         action: AdaptiveAction.speedUp,
         adaptationAction: AdaptationAction.levelUp,
         recommendedSpeedMs: newSpeed,
         recommendedLevel: newLevel,
-        fingerGuideEnabled: false, // Tắt hướng dẫn khi thăng cấp
+        fingerGuideEnabled: false, // TẮT hướng dẫn khi thăng cấp
         reason: reason,
         message: message,
         accuracy: accuracy,
@@ -328,7 +330,7 @@ class AdaptiveLearningEngine {
       _state = _state.copyWith(
         currentDifficulty: newLevel,
         flashDurationMs: newSpeed,
-        isFingerGuideEnabled: false,
+        isFingerGuideEnabled: false, // TẮT hướng dẫn khi thăng cấp
         adaptationFeedbackMessage: message,
         reason: reason,
         lastAction: AdaptationAction.levelUp,
@@ -339,8 +341,8 @@ class AdaptiveLearningEngine {
       return decision;
     }
 
-    // QUY TẮC 2: Hạ cấp & Hỗ trợ thị phạm (Level Down & Assist)
-    // accuracy < 50% (tức đúng <= 2/5 câu) HOẶC avgResponseTimeMs > 6000
+    // QUY TẮC 2: Điều kiện Giảm độ khó & Bật hướng dẫn (Hỗ trợ)
+    // accuracy < 0.5 (tức đúng từ 2/5 câu trở xuống, tương đương sai >= 3/5 câu) HOẶC avgResponseTime > 6000 ms
     if (accuracy < lowAccuracyThreshold || avgTime > slowResponseThresholdMs) {
       final newLevel = max(_state.currentDifficulty - 1, minLevel);
       final newSpeed =
@@ -351,14 +353,14 @@ class AdaptiveLearningEngine {
           : 'Thầy giảm tốc độ chớp số (${newSpeed}ms) để bé nhìn rõ hơn nhé! Cố lên nào! 💡';
 
       final reason =
-          'Tỷ lệ đúng ${(accuracy * 100).toInt()}% < 50% hoặc thời gian phản hồi ${avgTime}ms > 6000ms. Hạ cấp độ và kích hoạt hướng dẫn trực quan.';
+          'Tỷ lệ đúng ${(accuracy * 100).toInt()}% < 50% hoặc thời gian phản hồi ${avgTime}ms > 6000ms. Hạ cấp độ và BẬT chế độ hướng dẫn gập/mở ngón tay.';
 
       final decision = AdaptiveDecision(
         action: AdaptiveAction.guideHighlight,
         adaptationAction: AdaptationAction.levelDown,
         recommendedSpeedMs: newSpeed,
         recommendedLevel: newLevel,
-        fingerGuideEnabled: true, // Kích hoạt hướng dẫn thị phạm
+        fingerGuideEnabled: true, // BẬT chế độ hướng dẫn
         reason: reason,
         message: message,
         accuracy: accuracy,
@@ -369,7 +371,7 @@ class AdaptiveLearningEngine {
       _state = _state.copyWith(
         currentDifficulty: newLevel,
         flashDurationMs: newSpeed,
-        isFingerGuideEnabled: true,
+        isFingerGuideEnabled: true, // BẬT chế độ hướng dẫn
         adaptationFeedbackMessage: message,
         reason: reason,
         lastAction: AdaptationAction.levelDown,
@@ -380,18 +382,20 @@ class AdaptiveLearningEngine {
       return decision;
     }
 
-    // QUY TẮC 3: Giữ nguyên (Maintain)
+    // QUY TẮC 3: Vùng an toàn (Duy trì)
+    // Các trường hợp còn lại: Giữ nguyên cấp độ hiện tại và KHÔNG bật hướng dẫn.
+    // Nếu trước đó đang bật hướng dẫn thì PHẢI TẮT ĐI khi người dùng đạt lại mức an toàn này!
     final message =
         'Bé làm rất đều tay (${(accuracy * 100).toInt()}% đúng, ${avgTime}ms), cùng tiếp tục nào! ⭐';
     final reason =
-        'Kết quả ổn định trong phạm vi an toàn (${(accuracy * 100).toInt()}% đúng, ${avgTime}ms). Duy trì nhịp độ hiện tại.';
+        'Kết quả ổn định trong vùng an toàn (${(accuracy * 100).toInt()}% đúng, ${avgTime}ms). Giữ nguyên cấp độ và tắt hướng dẫn ngón tay.';
 
     final decision = AdaptiveDecision(
       action: AdaptiveAction.stayCurrent,
       adaptationAction: AdaptationAction.maintain,
       recommendedSpeedMs: _state.flashDurationMs,
       recommendedLevel: _state.currentDifficulty,
-      fingerGuideEnabled: _state.isFingerGuideEnabled,
+      fingerGuideEnabled: false, // TẮT HƯỚNG DẪN KHI ĐẠT VÙNG AN TOÀN
       reason: reason,
       message: message,
       accuracy: accuracy,
@@ -404,6 +408,7 @@ class AdaptiveLearningEngine {
       lastAction: AdaptationAction.maintain,
       adaptationFeedbackMessage: message,
       reason: reason,
+      isFingerGuideEnabled: false, // TẮT HƯỚNG DẪN KHI ĐẠT VÙNG AN TOÀN
     );
 
     return decision;

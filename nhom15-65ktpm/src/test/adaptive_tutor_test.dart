@@ -497,6 +497,57 @@ void main() {
       expect(engine.state.lastAction, AdaptationAction.maintain);
       expect(engine.state.currentDifficulty, 2);
       expect(engine.state.flashDurationMs, 1200);
+      expect(engine.state.isFingerGuideEnabled, isFalse);
+    });
+
+    test('TC_ENG_11: Chưa đủ 5 câu (mới làm sai 2 câu đầu) -> KHÔNG kích hoạt hướng dẫn ngón tay (fingerGuideEnabled = false)', () {
+      final engine = AdaptiveLearningEngine(
+        initialState: const AdaptiveState(
+          currentDifficulty: 1,
+          isFingerGuideEnabled: false,
+        ),
+      );
+
+      // Làm sai 2 câu đầu tiên
+      for (int i = 0; i < 2; i++) {
+        final decision = engine.processAttempt(
+          AttemptResult(
+            isCorrect: false,
+            responseTimeMs: 3000,
+            mode: PracticeMode.fingerMath,
+          ),
+        );
+
+        expect(decision.adaptationAction, AdaptationAction.maintain);
+        expect(decision.fingerGuideEnabled, isFalse);
+        expect(engine.state.isFingerGuideEnabled, isFalse);
+        expect(engine.window.length, i + 1);
+      }
+    });
+
+    test('TC_ENG_12: Sau khi bật hướng dẫn, làm đạt vùng an toàn/thăng cấp -> TỰ ĐỘNG TẮT hướng dẫn ngón tay', () {
+      final engine = AdaptiveLearningEngine(
+        resetWindowOnAdaptation: false,
+        initialState: const AdaptiveState(
+          currentDifficulty: 2,
+          isFingerGuideEnabled: true, // Giả lập đang bật hướng dẫn
+        ),
+      );
+
+      // Đưa 5 câu đúng vào cửa sổ trượt để đạt vùng an toàn hoặc thăng cấp
+      for (int i = 0; i < 5; i++) {
+        engine.processAttempt(
+          AttemptResult(
+            isCorrect: true,
+            responseTimeMs: 1500,
+            mode: PracticeMode.fingerMath,
+          ),
+        );
+      }
+
+      // Hướng dẫn ngón tay bắt buộc phải được tắt
+      expect(engine.state.isFingerGuideEnabled, isFalse);
+      expect(engine.state.currentDifficulty, 3);
     });
   });
 
