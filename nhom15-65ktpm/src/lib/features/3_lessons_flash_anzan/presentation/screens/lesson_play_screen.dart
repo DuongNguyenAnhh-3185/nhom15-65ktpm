@@ -1,3 +1,4 @@
+
 import 'dart:async';
 import 'dart:math' as math;
 
@@ -31,10 +32,13 @@ class _LessonPlayScreenState extends State<LessonPlayScreen>
   final StorageService _storageService = sl<StorageService>();
   final AudioService _audioService = sl<AudioService>();
   final QuestionGenerator _generator = QuestionGenerator();
+
   late final AnimationController _confettiController;
   late final FingerMathController _fingerController;
   late final AdaptiveLearningEngine _adaptiveEngine;
+
   late SorobanQuestion _question;
+
   DateTime _questionStartTime = DateTime.now();
 
   bool get _isLevel2 => widget.level == 2;
@@ -42,24 +46,31 @@ class _LessonPlayScreenState extends State<LessonPlayScreen>
   bool _showHint = false;
   bool _hasCheckedAnswer = false;
   bool _answeredCorrectly = false;
+
   int _questionNumber = 1;
+
   String _adaptiveFeedbackMessage = '';
+
   final List<_QuestionSessionResult> _sessionResults = [];
 
   @override
   void initState() {
     super.initState();
+
     _confettiController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1700),
     );
+
     _adaptiveEngine = AdaptiveLearningEngine(
       initialState: AdaptiveState(
         currentDifficulty: widget.level,
         isFingerGuideEnabled: false,
       ),
     );
+
     _fingerController = FingerMathController(showLeftHand: _isLevel2);
+
     _loadQuestion(isFirstQuestion: true);
   }
 
@@ -75,21 +86,31 @@ class _LessonPlayScreenState extends State<LessonPlayScreen>
     _question = _generator.generateForLevel(
       _isLevel2 ? QuestionLevel.friendRules : QuestionLevel.basic,
     );
+
     _fingerController.setValue(_question.operands.first);
+
     _showHint = _adaptiveEngine.state.isFingerGuideEnabled;
+
     _confettiController.reset();
+
     _hasCheckedAnswer = false;
     _answeredCorrectly = false;
     _adaptiveFeedbackMessage = '';
+
     _questionStartTime = DateTime.now();
+
     if (!isFirstQuestion) _questionNumber++;
   }
 
-  Future<void> _checkAnswer({int? voiceAnswer, String rawSpeech = ''}) async {
+  Future<void> _checkAnswer({
+    int? voiceAnswer,
+    String rawSpeech = '',
+  }) async {
     if (_hasCheckedAnswer && _answeredCorrectly) return;
 
     final ans = voiceAnswer ?? _fingerController.totalValue;
     final isCorrect = ans == _question.expectedAnswer;
+
     final responseTime =
         DateTime.now().difference(_questionStartTime).inMilliseconds;
 
@@ -101,7 +122,10 @@ class _LessonPlayScreenState extends State<LessonPlayScreen>
 
     if (isCorrect) {
       final soundStarted = await _audioService.playCorrectAnswerSound();
-      if (soundStarted && mounted) _confettiController.forward(from: 0);
+
+      if (soundStarted && mounted) {
+        _confettiController.forward(from: 0);
+      }
     } else {
       unawaited(_audioService.playIncorrectAnswerSound());
     }
@@ -117,19 +141,28 @@ class _LessonPlayScreenState extends State<LessonPlayScreen>
       difficultyLevel: widget.level,
       questionText: '${_question.formulaExpression} = ?',
     );
+
     await _storageService.saveAttemptLog(log);
 
     // 2. Cập nhật chuỗi Streak & Kiểm tra mở khóa Huy hiệu
     final profile = await _storageService.getChildProfile();
     final allLogs = await _storageService.getRecentLogs();
-    final gamificationResult = GamificationService.processLessonCompletion(
+
+    final gamificationResult =
+        GamificationService.processLessonCompletion(
       profile: profile,
       allLogs: allLogs,
     );
-    await _storageService.saveChildProfile(gamificationResult.updatedProfile);
+
+    await _storageService.saveChildProfile(
+      gamificationResult.updatedProfile,
+    );
 
     if (gamificationResult.newlyUnlockedBadges.isNotEmpty && mounted) {
-      BadgeUnlockDialog.show(context, gamificationResult.newlyUnlockedBadges);
+      BadgeUnlockDialog.show(
+        context,
+        gamificationResult.newlyUnlockedBadges,
+      );
     }
 
     // 3. Gia sư thích ứng đánh giá và hỗ trợ theo cửa sổ trượt
@@ -139,11 +172,13 @@ class _LessonPlayScreenState extends State<LessonPlayScreen>
       mode: PracticeMode.fingerMath,
       difficultyLevel: widget.level,
     );
+
     final decision = _adaptiveEngine.processAttempt(attempt);
 
     if (mounted) {
       setState(() {
         _adaptiveFeedbackMessage = decision.message;
+
         if (decision.fingerGuideEnabled) {
           _showHint = true;
         }
@@ -155,6 +190,7 @@ class _LessonPlayScreenState extends State<LessonPlayScreen>
     final existing = _sessionResults.where(
       (result) => result.number == _questionNumber,
     );
+
     if (existing.isNotEmpty) {
       final result = existing.first;
       result.answer = answer;
@@ -176,9 +212,11 @@ class _LessonPlayScreenState extends State<LessonPlayScreen>
 
   void _skipQuestion() {
     unawaited(_audioService.stopFeedback());
+
     final existing = _sessionResults.where(
       (result) => result.number == _questionNumber,
     );
+
     if (existing.isEmpty) {
       _sessionResults.add(
         _QuestionSessionResult(
@@ -192,27 +230,37 @@ class _LessonPlayScreenState extends State<LessonPlayScreen>
       // Keep a wrong answer as wrong when the child skips afterward.
       existing.first.skipped = false;
     }
+
     setState(_loadQuestion);
   }
 
   Future<void> _showSessionSummary() async {
     await _audioService.stopFeedback();
+
     if (!mounted) return;
-    final results = List<_QuestionSessionResult>.unmodifiable(_sessionResults);
-    final correct = results.where((result) => result.isCorrect == true).length;
+
+    final results =
+        List<_QuestionSessionResult>.unmodifiable(_sessionResults);
+
+    final correct =
+        results.where((result) => result.isCorrect == true).length;
+
     final wrong = results
         .where((result) => result.isCorrect == false && !result.skipped)
         .length;
+
     final skipped = results.where((result) => result.skipped).length;
 
     await showDialog<void>(
       context: context,
       builder: (dialogContext) {
         final screenSize = MediaQuery.sizeOf(dialogContext);
+
         final resultListHeight = math.min(
           300.0,
           math.max(150.0, screenSize.height * 0.38),
         );
+
         return AlertDialog(
           title: const Text('Kết quả lượt chơi'),
           content: SizedBox(
@@ -229,27 +277,33 @@ class _LessonPlayScreenState extends State<LessonPlayScreen>
                   Expanded(
                     child: ListView.separated(
                       itemCount: results.length,
-                      separatorBuilder: (_, __) => const Divider(height: 1),
+                      separatorBuilder: (_, __) =>
+                          const Divider(height: 1),
                       itemBuilder: (context, index) {
                         final result = results[index];
+
                         final status = result.skipped
                             ? 'Đã bỏ qua'
                             : result.isCorrect == true
                                 ? 'Đúng'
                                 : 'Sai: ${result.answer} (đáp án ${result.expectedAnswer})';
+
                         final color = result.isCorrect == true
                             ? AppColors.success
                             : result.skipped
                                 ? AppColors.textLight
                                 : AppColors.error;
+
                         return ListTile(
                           dense: true,
                           contentPadding: EdgeInsets.zero,
                           title: Text(
                             'Câu ${result.number}: ${result.expression} = ${result.expectedAnswer}',
                           ),
-                          subtitle:
-                              Text(status, style: TextStyle(color: color)),
+                          subtitle: Text(
+                            status,
+                            style: TextStyle(color: color),
+                          ),
                         );
                       },
                     ),
@@ -265,7 +319,9 @@ class _LessonPlayScreenState extends State<LessonPlayScreen>
             FilledButton(
               onPressed: () async {
                 await _audioService.stopFeedback();
+
                 if (!dialogContext.mounted || !mounted) return;
+
                 Navigator.of(dialogContext).pop();
                 Navigator.of(context).pop();
               },
@@ -283,6 +339,7 @@ class _LessonPlayScreenState extends State<LessonPlayScreen>
 
   void _tryAgain() {
     unawaited(_audioService.stopFeedback());
+
     setState(() {
       _fingerController.setValue(_question.operands.first);
       _hasCheckedAnswer = false;
@@ -299,12 +356,16 @@ class _LessonPlayScreenState extends State<LessonPlayScreen>
   Widget build(BuildContext context) {
     final firstOperand = _question.operands[0];
     final secondOperand = _question.operands[1];
-    final isAddition = _question.operation == ArithmeticOperation.addition;
+
+    final isAddition =
+        _question.operation == ArithmeticOperation.addition;
 
     return PopScope<Object?>(
       canPop: false,
       onPopInvokedWithResult: (didPop, _) {
-        if (!didPop) unawaited(_showSessionSummary());
+        if (!didPop) {
+          unawaited(_showSessionSummary());
+        }
       },
       child: Scaffold(
         appBar: AppBar(
@@ -329,9 +390,10 @@ class _LessonPlayScreenState extends State<LessonPlayScreen>
             SafeArea(
               child: LayoutBuilder(
                 builder: (context, constraints) {
-                  final handBoardHeight = (constraints.maxHeight * 0.35)
-                      .clamp(160.0, 240.0)
-                      .toDouble();
+                  final handBoardHeight =
+                      (constraints.maxHeight * 0.35)
+                          .clamp(160.0, 240.0)
+                          .toDouble();
 
                   return SingleChildScrollView(
                     padding: const EdgeInsets.symmetric(vertical: 8),
@@ -342,8 +404,9 @@ class _LessonPlayScreenState extends State<LessonPlayScreen>
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Padding(
-                              padding:
-                                  const EdgeInsets.symmetric(horizontal: 20),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 20,
+                              ),
                               child: Row(
                                 mainAxisAlignment:
                                     MainAxisAlignment.spaceBetween,
@@ -356,7 +419,8 @@ class _LessonPlayScreenState extends State<LessonPlayScreen>
                                     decoration: BoxDecoration(
                                       color: AppColors.primary
                                           .withValues(alpha: 0.15),
-                                      borderRadius: BorderRadius.circular(16),
+                                      borderRadius:
+                                          BorderRadius.circular(16),
                                     ),
                                     child: Text(
                                       'Câu số $_questionNumber',
@@ -378,7 +442,9 @@ class _LessonPlayScreenState extends State<LessonPlayScreen>
                             ),
                             const Padding(
                               padding: EdgeInsets.symmetric(
-                                  horizontal: 20, vertical: 6),
+                                horizontal: 20,
+                                vertical: 6,
+                              ),
                               child: Text(
                                 'Bé hãy gảy ngón tay hoặc bấm Micro để nói đáp án nhé!',
                                 textAlign: TextAlign.center,
@@ -391,14 +457,20 @@ class _LessonPlayScreenState extends State<LessonPlayScreen>
                             ),
                             Container(
                               margin: const EdgeInsets.symmetric(
-                                  horizontal: 20, vertical: 6),
+                                horizontal: 20,
+                                vertical: 6,
+                              ),
                               padding: const EdgeInsets.symmetric(
-                                  horizontal: 28, vertical: 12),
+                                horizontal: 28,
+                                vertical: 12,
+                              ),
                               decoration: BoxDecoration(
                                 color: Colors.white,
                                 borderRadius: BorderRadius.circular(24),
                                 border: Border.all(
-                                    color: AppColors.secondary, width: 2),
+                                  color: AppColors.secondary,
+                                  width: 2,
+                                ),
                               ),
                               child: Text(
                                 '${_question.formulaExpression} = ?',
@@ -411,37 +483,44 @@ class _LessonPlayScreenState extends State<LessonPlayScreen>
                             ),
                             if (_isLevel2)
                               Padding(
-                                padding:
-                                    const EdgeInsets.symmetric(horizontal: 20),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 20,
+                                ),
                                 child: _buildHintSection(secondOperand),
                               ),
                             if (!_isLevel2)
                               Padding(
-                                padding:
-                                    const EdgeInsets.symmetric(horizontal: 24),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 24,
+                                ),
                                 child: Text(
                                   isAddition
                                       ? 'Bắt đầu từ $firstOperand rồi xòe thêm $secondOperand nhé.'
                                       : 'Bắt đầu từ $firstOperand rồi gập bớt $secondOperand nhé.',
                                   textAlign: TextAlign.center,
                                   style: const TextStyle(
-                                      color: AppColors.textLight),
+                                    color: AppColors.textLight,
+                                  ),
                                 ),
                               ),
                             Padding(
-                              padding:
-                                  const EdgeInsets.symmetric(horizontal: 12),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                              ),
                               child: FingerMathBoardWidget(
                                 controller: _fingerController,
                                 height: handBoardHeight,
                                 showLiveValue: true,
-                                isGuideEnabled: _showHint ||
-                                    _adaptiveEngine.state.isFingerGuideEnabled,
+                                isGuideEnabled:
+                                    _showHint || _adaptiveEngine.state.isFingerGuideEnabled,
                               ),
                             ),
+
                             // Nút Micro AI nhận diện giọng nói tiếng Việt (Mục 7.7)
                             Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 6),
+                              padding: const EdgeInsets.symmetric(
+                                vertical: 6,
+                              ),
                               child: VoiceAnswerMicButton(
                                 onAnswerDetected: (number, raw) {
                                   _fingerController.setValue(number);
@@ -465,7 +544,9 @@ class _LessonPlayScreenState extends State<LessonPlayScreen>
                                 !_answeredCorrectly)
                               Padding(
                                 padding: const EdgeInsets.symmetric(
-                                    horizontal: 20, vertical: 4),
+                                  horizontal: 20,
+                                  vertical: 4,
+                                ),
                                 child: Text(
                                   _adaptiveFeedbackMessage,
                                   textAlign: TextAlign.center,
@@ -476,11 +557,14 @@ class _LessonPlayScreenState extends State<LessonPlayScreen>
                                   ),
                                 ),
                               ),
-
                             if (_hasCheckedAnswer)
                               Padding(
-                                padding:
-                                    const EdgeInsets.fromLTRB(20, 0, 20, 8),
+                                padding: const EdgeInsets.fromLTRB(
+                                  20,
+                                  0,
+                                  20,
+                                  8,
+                                ),
                                 child: _buildAnswerFeedback(
                                   firstOperand: firstOperand,
                                   secondOperand: secondOperand,
@@ -488,7 +572,12 @@ class _LessonPlayScreenState extends State<LessonPlayScreen>
                                 ),
                               ),
                             Padding(
-                              padding: const EdgeInsets.fromLTRB(16, 4, 16, 20),
+                              padding: const EdgeInsets.fromLTRB(
+                                16,
+                                4,
+                                16,
+                                20,
+                              ),
                               child: Row(
                                 children: [
                                   Expanded(
@@ -513,10 +602,14 @@ class _LessonPlayScreenState extends State<LessonPlayScreen>
                                                 : 'THỬ LẠI',
                                       ),
                                       style: FilledButton.styleFrom(
-                                        backgroundColor: AppColors.secondary,
-                                        foregroundColor: AppColors.onSecondary,
-                                        padding: const EdgeInsets.symmetric(
-                                            vertical: 17),
+                                        backgroundColor:
+                                            AppColors.secondary,
+                                        foregroundColor:
+                                            AppColors.onSecondary,
+                                        padding:
+                                            const EdgeInsets.symmetric(
+                                          vertical: 17,
+                                        ),
                                       ),
                                     ),
                                   ),
@@ -524,10 +617,13 @@ class _LessonPlayScreenState extends State<LessonPlayScreen>
                                     const SizedBox(width: 10),
                                     OutlinedButton.icon(
                                       onPressed: _skipQuestion,
-                                      icon: const Icon(Icons.skip_next_rounded),
+                                      icon: const Icon(
+                                        Icons.skip_next_rounded,
+                                      ),
                                       label: const Text('BỎ QUA'),
                                       style: OutlinedButton.styleFrom(
-                                        padding: const EdgeInsets.symmetric(
+                                        padding:
+                                            const EdgeInsets.symmetric(
                                           horizontal: 14,
                                           vertical: 16,
                                         ),
@@ -567,10 +663,14 @@ class _LessonPlayScreenState extends State<LessonPlayScreen>
     final isSmallFriend = _question.type == QuestionType.smallFriend;
     final base = isSmallFriend ? 5 : 10;
     final complement = base - secondOperand;
-    final isAddition = _question.operation == ArithmeticOperation.addition;
+
+    final isAddition =
+        _question.operation == ArithmeticOperation.addition;
+
     final rule = isAddition
         ? '+$secondOperand = +$base - $complement'
         : '-$secondOperand = -$base + $complement';
+
     final instruction = isAddition
         ? 'Bé hãy thêm $base trước, rồi bớt lại $complement nhé!'
         : 'Bé hãy bớt $base trước, rồi thêm lại $complement nhé!';
@@ -580,7 +680,9 @@ class _LessonPlayScreenState extends State<LessonPlayScreen>
         FilledButton.icon(
           onPressed: () => setState(() => _showHint = !_showHint),
           icon: Icon(
-            _showHint ? Icons.lightbulb : Icons.lightbulb_outline,
+            _showHint
+                ? Icons.lightbulb
+                : Icons.lightbulb_outline,
             size: 23,
           ),
           label: Text(_showHint ? 'ẨN GỢI Ý' : 'GỢI Ý'),
@@ -588,14 +690,18 @@ class _LessonPlayScreenState extends State<LessonPlayScreen>
             backgroundColor: AppColors.accentOrange,
             foregroundColor: Colors.white,
             elevation: 3,
-            shadowColor: AppColors.accentOrange.withValues(alpha: 0.4),
+            shadowColor:
+                AppColors.accentOrange.withValues(alpha: 0.4),
             textStyle: const TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w900,
               letterSpacing: 0.4,
             ),
             minimumSize: const Size(0, 52),
-            padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 10),
+            padding: const EdgeInsets.symmetric(
+              horizontal: 22,
+              vertical: 10,
+            ),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(24),
             ),
@@ -604,7 +710,10 @@ class _LessonPlayScreenState extends State<LessonPlayScreen>
         if (_showHint)
           Container(
             width: double.infinity,
-            margin: const EdgeInsets.only(top: 10, bottom: 8),
+            margin: const EdgeInsets.only(
+              top: 10,
+              bottom: 8,
+            ),
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
               color: const Color(0xFFFFF3B0),
@@ -627,7 +736,10 @@ class _LessonPlayScreenState extends State<LessonPlayScreen>
                         color: const Color(0xFFD8EFF5),
                         borderRadius: BorderRadius.circular(16),
                       ),
-                      child: const Text('🐼', style: TextStyle(fontSize: 32)),
+                      child: const Text(
+                        '🐼',
+                        style: TextStyle(fontSize: 32),
+                      ),
                     ),
                     const SizedBox(width: 10),
                     const Text(
@@ -682,12 +794,17 @@ class _LessonPlayScreenState extends State<LessonPlayScreen>
     required int secondOperand,
     required bool isAddition,
   }) {
-    final backgroundColor =
-        _answeredCorrectly ? const Color(0xFFE8F7EE) : const Color(0xFFFFF1E8);
+    final backgroundColor = _answeredCorrectly
+        ? const Color(0xFFE8F7EE)
+        : const Color(0xFFFFF1E8);
+
     final accentColor =
         _answeredCorrectly ? AppColors.success : AppColors.error;
-    final title =
-        _answeredCorrectly ? 'CHÍNH XÁC!' : 'CHƯA ĐÚNG, BÉ THỬ LẠI NHÉ!';
+
+    final title = _answeredCorrectly
+        ? 'CHÍNH XÁC!'
+        : 'CHƯA ĐÚNG, BÉ THỬ LẠI NHÉ!';
+
     final message = _answeredCorrectly
         ? 'Bé đã tìm được đáp án ${_question.expectedAnswer}. Giỏi quá!'
         : 'Bàn tay đang chỉ số ${_fingerController.totalValue}. '
@@ -699,7 +816,10 @@ class _LessonPlayScreenState extends State<LessonPlayScreen>
       decoration: BoxDecoration(
         color: backgroundColor,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: accentColor, width: 2),
+        border: Border.all(
+          color: accentColor,
+          width: 2,
+        ),
       ),
       child: Row(
         children: [
@@ -754,13 +874,16 @@ class _QuestionSessionResult {
   final int number;
   final String expression;
   final int expectedAnswer;
+
   int? answer;
   bool? isCorrect;
   bool skipped;
 }
 
 class _ConfettiPainter extends CustomPainter {
-  const _ConfettiPainter({required this.progress});
+  const _ConfettiPainter({
+    required this.progress,
+  });
 
   final double progress;
 
@@ -769,6 +892,7 @@ class _ConfettiPainter extends CustomPainter {
     if (progress <= 0 || progress >= 1) return;
 
     final random = math.Random(1506);
+
     const colors = [
       Color(0xFFFF6B6B),
       Color(0xFF4ECDC4),
@@ -776,21 +900,29 @@ class _ConfettiPainter extends CustomPainter {
       Color(0xFF9D4EDD),
       Color(0xFFFF9F1C),
     ];
-    final opacity = ((1 - progress) * 1.6).clamp(0.0, 1.0).toDouble();
+
+    final opacity =
+        ((1 - progress) * 1.6).clamp(0.0, 1.0).toDouble();
 
     for (var i = 0; i < 56; i++) {
       final startX = random.nextDouble() * size.width;
       final startY = -20 - random.nextDouble() * 130;
       final speed = 0.65 + random.nextDouble() * 0.65;
       final phase = random.nextDouble() * math.pi * 2;
-      final y = startY + progress * (size.height + 170) * speed;
+
+      final y =
+          startY + progress * (size.height + 170) * speed;
+
       if (y < -20 || y > size.height + 24) continue;
 
       final x = startX + math.sin(progress * 8 + phase) * 20;
+
       final width = 5 + random.nextDouble() * 5;
       final height = 8 + random.nextDouble() * 7;
+
       final paint = Paint()
-        ..color = colors[i % colors.length].withValues(alpha: opacity);
+        ..color = colors[i % colors.length]
+            .withValues(alpha: opacity);
 
       canvas
         ..save()

@@ -10,6 +10,7 @@ class ChildProfile extends Equatable {
   final String lastCompletedDate;
   final List<String> unlockedBadgeIds;
   final int currentLevel;
+  final int flashAnzanLevel;
   final int flashSpeedMs;
   final bool fingerGuideEnabled;
 
@@ -23,7 +24,8 @@ class ChildProfile extends Equatable {
     this.lastCompletedDate = '',
     required this.unlockedBadgeIds,
     required this.currentLevel,
-    this.flashSpeedMs = 1200,
+    this.flashAnzanLevel = 1,
+    this.flashSpeedMs = 2500,
     this.fingerGuideEnabled = false,
   });
 
@@ -37,6 +39,7 @@ class ChildProfile extends Equatable {
     String? lastCompletedDate,
     List<String>? unlockedBadgeIds,
     int? currentLevel,
+    int? flashAnzanLevel,
     int? flashSpeedMs,
     bool? fingerGuideEnabled,
   }) {
@@ -50,6 +53,7 @@ class ChildProfile extends Equatable {
       lastCompletedDate: lastCompletedDate ?? this.lastCompletedDate,
       unlockedBadgeIds: unlockedBadgeIds ?? this.unlockedBadgeIds,
       currentLevel: currentLevel ?? this.currentLevel,
+      flashAnzanLevel: flashAnzanLevel ?? this.flashAnzanLevel,
       flashSpeedMs: flashSpeedMs ?? this.flashSpeedMs,
       fingerGuideEnabled: fingerGuideEnabled ?? this.fingerGuideEnabled,
     );
@@ -66,6 +70,7 @@ class ChildProfile extends Equatable {
       'lastCompletedDate': lastCompletedDate,
       'unlockedBadgeIds': unlockedBadgeIds,
       'currentLevel': currentLevel,
+      'flashAnzanLevel': flashAnzanLevel,
       'flashSpeedMs': flashSpeedMs,
       'fingerGuideEnabled': fingerGuideEnabled,
     };
@@ -86,7 +91,8 @@ class ChildProfile extends Equatable {
       unlockedBadgeIds:
           badgeIds is List ? badgeIds.whereType<String>().toList() : const [],
       currentLevel: _nonNegativeInt(map['currentLevel'], 1),
-      flashSpeedMs: _nonNegativeInt(map['flashSpeedMs'], 1200),
+      flashAnzanLevel: _nonNegativeInt(map['flashAnzanLevel'], 1),
+      flashSpeedMs: _nonNegativeInt(map['flashSpeedMs'], 2500),
       fingerGuideEnabled: map['fingerGuideEnabled'] is bool
           ? map['fingerGuideEnabled'] as bool
           : false,
@@ -112,6 +118,7 @@ class ChildProfile extends Equatable {
         lastCompletedDate,
         unlockedBadgeIds,
         currentLevel,
+        flashAnzanLevel,
         flashSpeedMs,
         fingerGuideEnabled,
       ];
